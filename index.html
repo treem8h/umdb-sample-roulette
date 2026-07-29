@@ -423,7 +423,7 @@
   // loader: sparisce dopo un attimo
   window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1600); });
   // registra il service worker (PWA installabile)
-  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=10').catch(()=>{})); }
+  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
 
   const AUDIO='/a/';                    // stesso dominio: sampler.francescopavani.it/a/<id>
   const $=s=>document.querySelector(s);
