@@ -58,16 +58,18 @@ for qi,q in enumerate(QUERIES):
         # durata + status via videos.list (batch 50)
         if ids:
             try:
-                v=yt.videos().list(part='contentDetails,status',id=','.join(ids)).execute(); calls+=1
+                v=yt.videos().list(part='contentDetails,status,statistics',id=','.join(ids)).execute(); calls+=1
                 for it in v.get('items',[]):
                     vid=it['id']; d=iso_to_sec(it['contentDetails']['duration'])
                     st=it.get('status',{})
+                    views=int(it.get('statistics',{}).get('viewCount',0) or 0)
                     if d<45 or d>600: continue
                     if not st.get('embeddable',True): continue
+                    if views>300000: continue          # niente hit famose → roba da digger (poche views)
                     t=titles.get(vid,'')
                     if BAD.search(t): continue
                     if vid in pool: continue
-                    pool[vid]={"id":vid,"d":d,"t":t[:80]}
+                    pool[vid]={"id":vid,"d":d,"t":t[:80],"v":views}
             except Exception as e:
                 print(f"  videos err: {str(e)[:60]}")
         token=r.get('nextPageToken')

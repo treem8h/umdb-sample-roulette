@@ -111,13 +111,16 @@
   .plate{background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border-radius:12px; padding:9px;
     border:1px solid var(--groove); box-shadow:0 2px 5px rgba(0,0,0,.4) inset, 0 1px 0 rgba(255,255,255,.15)}
   .screen{position:relative; border-radius:7px; overflow:hidden; background:#000; border:2px solid #000}
-  .video-wrap{position:relative; aspect-ratio:16/9; background:#000}
+  /* altezza BLINDATA (padding-bottom 56.25%) → lo schermo non cambia mai dimensione */
+  .video-wrap{position:relative; width:100%; height:0; padding-bottom:56.25%; background:#000; overflow:hidden}
   #player,.video-wrap iframe{position:absolute; inset:0; width:100%; height:100%; border:0; pointer-events:none}
   .novid{position:absolute; inset:0; display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center;
     color:var(--lcd-dim); font-family:"Courier New",monospace; font-size:.82rem; letter-spacing:.15em; text-align:center; padding:18px; background:var(--lcd-bg)}
   .novid .big{color:var(--lcd); font-size:1rem; letter-spacing:.25em; text-shadow:0 0 10px var(--lcd-glow)}
   .scan{position:absolute; inset:0; pointer-events:none; mix-blend-mode:overlay; opacity:.35;
     background:repeating-linear-gradient(0deg, rgba(0,0,0,.4) 0 1px, transparent 1px 3px)}
+  /* tap sullo schermo = play/pausa */
+  .taplayer{position:absolute; inset:0; z-index:3; cursor:pointer}
   /* timeline scorrevole */
   .timeline{position:relative; height:6px; background:#081207; cursor:pointer; border-top:1px solid #000}
   .timeline i{position:absolute; left:0; top:0; height:100%; width:0; background:var(--lcd);
@@ -125,8 +128,9 @@
   .timeline i::after{content:""; position:absolute; right:-1px; top:-1px; bottom:-1px; width:2px; background:#dfffce}
   .lcd{font-family:"Courier New",monospace; color:var(--lcd); background:var(--lcd-bg);
     border-top:1px solid #000; padding:7px 11px; display:flex; justify-content:space-between; gap:10px;
-    font-size:.8rem; letter-spacing:.06em; text-shadow:0 0 7px var(--lcd-glow); font-variant-numeric:tabular-nums}
-  .lcd .time{color:var(--lcd-dim)}
+    font-size:.8rem; letter-spacing:.06em; text-shadow:0 0 7px var(--lcd-glow); font-variant-numeric:tabular-nums; white-space:nowrap}
+  .lcd .msg{overflow:hidden; text-overflow:ellipsis}
+  .lcd .time{color:var(--lcd-dim); flex:none}
 
   /* GRUPPI MPC: colore PIENO stampato piatto sul chassis (no scavo, no bordo) */
   /* padding-bottom maggiore: compensa l'ombra 3D dei tasti → spazio visivo simmetrico */
@@ -255,6 +259,7 @@
             <span>hit RANDOM to pull<br>a sample to chop</span>
           </div>
           <div class="scan"></div>
+          <div class="taplayer" id="taplayer"></div>
           <button class="flagbtn" id="reportBtn" title="Report: not music / not a sample" aria-label="Report">⚑</button>
           <div class="histpanel" id="histpanel">
             <div class="hphead"><span>Session history</span><span id="histClose" style="cursor:pointer">✕ close</span></div>
@@ -350,13 +355,17 @@
     renderHistory();
   }
   let player=null, ready=false, dur=0, clearMode=false;
-  let pads = JSON.parse(localStorage.getItem('umdb_pads')||'null') || Array(16).fill(null);
-  let lastVid = localStorage.getItem('umdb_vid') || '';
+  // pad PER-CANZONE: ogni brano ricorda i suoi pad
+  let padMap = JSON.parse(localStorage.getItem('umdb_padmap')||'{}');
+  let pads = Array(16).fill(null);
   const $=s=>document.querySelector(s);
   const msg=$('#msg'), clock=$('#clock'), novid=$('#novid');
   const setMsg=t=>msg.textContent=t;
   const fmt=s=>{ if(isNaN(s)||s<0)return '0:00'; s=Math.floor(s); return (s/60|0)+':'+String(s%60).padStart(2,'0'); };
-  const save=()=>{ localStorage.setItem('umdb_pads',JSON.stringify(pads)); if(lastVid)localStorage.setItem('umdb_vid',lastVid); };
+  function loadPadsFor(id){ pads = padMap[id] ? padMap[id].slice() : Array(16).fill(null); renderPads(); }
+  function savePads(){ if(!curTrack) return; padMap[curTrack.id]=pads;
+    const ks=Object.keys(padMap); while(ks.length>120){ delete padMap[ks.shift()]; }
+    localStorage.setItem('umdb_padmap',JSON.stringify(padMap)); }
   const grid=$('#pads');
   pads.forEach((_,i)=>{ const p=document.createElement('button'); p.className='pad'; p.dataset.i=i;
     p.innerHTML='<span class="lbl">'+String(i+1).padStart(2,'0')+'</span><span class="t"></span>';
@@ -365,11 +374,11 @@
     el.classList.toggle('clearmode',clearMode); el.querySelector('.t').textContent=pads[i]!=null?fmt(pads[i]):'—'; }); }
   function flash(i){ const el=grid.children[i]; el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'),240); }
   function hitPad(i){ const lab='PAD '+String(i+1).padStart(2,'0');
-    if(clearMode){ pads[i]=null; save(); renderPads(); setMsg(lab+' CLEAR'); return; }
+    if(clearMode){ pads[i]=null; savePads(); renderPads(); setMsg(lab+' CLEAR'); return; }
     if(!ready){ setMsg('PRESS RANDOM'); return; }
-    if(pads[i]==null){ pads[i]=player.getCurrentTime(); save(); renderPads(); setMsg(lab+' SET '+fmt(pads[i])); }
+    if(pads[i]==null){ pads[i]=player.getCurrentTime(); savePads(); renderPads(); setMsg(lab+' SET '+fmt(pads[i])); }
     else { flash(i); setMsg(lab+' ►'+fmt(pads[i])); player.seekTo(pads[i],true); player.playVideo(); } }
-  function loadVideo(id){ if(!id){ setMsg('—'); return; } lastVid=id; novid.style.display='none'; setMsg('LOADING…');
+  function loadVideo(id){ if(!id){ setMsg('—'); return; } novid.style.display='none'; setMsg('LOADING…');
     if(player&&player.loadVideoById) player.loadVideoById(id);
     else player=new YT.Player('player',{videoId:id,
       playerVars:{playsinline:1,rel:0,controls:0,disablekb:1,modestbranding:1,iv_load_policy:3},
@@ -379,9 +388,10 @@
           if(e.data===2){setMsg('PAUSE'); $('#playpause').textContent='Play';} }}}); }
   function rollRandom(){ if(!POOL.length){ setMsg('LOADING POOL…'); return; }
     if(!window.YT||!window.YT.Player){ setMsg('LOADING…'); setTimeout(rollRandom,300); return; }
-    const v=pick(); curTrack=v; setMsg('◉ ROULETTE…'); loadVideo(v.id); addHistory(v); bumpSub();
-    const seek=()=>{ if(ready&&dur){ player.seekTo(Math.random()*dur*0.8,true); player.playVideo(); } else setTimeout(seek,250); }; setTimeout(seek,600); }
-  function playTrack(v){ curTrack=v; loadVideo(v.id); setMsg('◉ '+(v.t||v.id).slice(0,22)); setTimeout(()=>{ if(ready)player.playVideo(); },500); }
+    const v=pick(); curTrack=v; setMsg('◉ ROULETTE…'); loadVideo(v.id); addHistory(v); bumpSub(); loadPadsFor(v.id);
+    const go=()=>{ if(ready){ player.seekTo(0,true); player.playVideo(); } else setTimeout(go,250); }; setTimeout(go,400); }  // parte da 0:00
+  function playTrack(v){ curTrack=v; loadVideo(v.id); loadPadsFor(v.id); setMsg('◉ '+(v.t||v.id).slice(0,22));
+    const go=()=>{ if(ready){ player.seekTo(0,true); player.playVideo(); } else setTimeout(go,250); }; setTimeout(go,400); }
   window.onYouTubeIframeAPIReady=()=>{ ytReady=true; };
   const tlfill=$('#tlfill');
   setInterval(()=>{ if(ready){ const t=player.getCurrentTime(); clock.textContent=fmt(t)+' / '+fmt(dur);
@@ -393,7 +403,8 @@
   $('#playpause').addEventListener('click',()=>{ if(!ready)return; const s=player.getPlayerState(); s===1?player.pauseVideo():player.playVideo(); });
   $('#restart').addEventListener('click',()=>{ if(!ready)return; player.seekTo(0,true); player.playVideo(); setMsg('◄ START'); });
   $('#shift').addEventListener('click',e=>{ clearMode=!clearMode; e.currentTarget.classList.toggle('on',clearMode); renderPads(); setMsg(clearMode?'CLEAR MODE':'READY'); });
-  $('#clearall').addEventListener('click',()=>{ pads=Array(16).fill(null); save(); renderPads(); setMsg('RESET'); });
+  $('#clearall').addEventListener('click',()=>{ pads=Array(16).fill(null); savePads(); renderPads(); setMsg('RESET'); });
+  $('#taplayer').addEventListener('click',()=>{ if(!ready)return; const s=player.getPlayerState(); s===1?player.pauseVideo():player.playVideo(); });
   document.querySelectorAll('.jbtn').forEach(b=>b.addEventListener('click',()=>{
     if(!ready)return; const d=+b.dataset.d; let t=Math.max(0,Math.min(dur||1e9,player.getCurrentTime()+d));
     player.seekTo(t,true); player.playVideo(); setMsg((d>0?'►+':'◄')+Math.abs(d)+'s  '+fmt(t)); }));
