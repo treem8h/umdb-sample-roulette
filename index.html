@@ -37,16 +37,6 @@
     padding:clamp(12px,3vh,70px) clamp(10px,3vw,44px); position:relative; overflow-x:hidden;
   }
 
-  /* ===== DA PWA INSTALLATA: il telefono DIVENTA il device ===== */
-  /* niente chassis/ombra/bordi/banda → edge-to-edge immersivo. Sul SITO (browser) resta tutto com'è. */
-  .topband{display:none}
-  @media (display-mode: standalone), (display-mode: fullscreen){
-    body{ padding:0; margin:0; background:var(--shell); min-height:100dvh; display:block; }
-    .unit{ max-width:none; width:100%; margin:0; min-height:100dvh; border:0; border-radius:0; box-shadow:none;
-      padding:calc(env(safe-area-inset-top,0px) + 38px) calc(env(safe-area-inset-right,0px) + 16px)
-              calc(env(safe-area-inset-bottom,0px) + 46px) calc(env(safe-area-inset-left,0px) + 16px); }
-  }
-
   /* ===== LOADER minimal ===== */
   #boot{position:fixed; inset:0; z-index:50; background:var(--shell);
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
@@ -301,6 +291,15 @@
   @media (pointer:coarse), (max-width:520px){ .tip.kbtip{display:none} }
   @media (min-width:860px){ .desk{display:block} }
   @media (prefers-reduced-motion:reduce){#boot img,#boot .bar i{animation:none} #boot .bar i{width:100%}}
+
+  /* ===== DA PWA INSTALLATA: il telefono DIVENTA il device — IN FONDO così vince l'ordine CSS ===== */
+  /* niente chassis/ombra/bordi, edge-to-edge con padding comodo. Sul SITO (browser) resta tutto com'è. */
+  @media (display-mode: standalone), (display-mode: fullscreen){
+    body{ padding:0 !important; margin:0; background:var(--shell); min-height:100dvh; display:block; }
+    .unit{ max-width:none !important; width:100%; margin:0; min-height:100dvh; border:0; border-radius:0; box-shadow:none;
+      padding:calc(env(safe-area-inset-top,0px) + 42px) clamp(14px,4vw,20px)
+              calc(env(safe-area-inset-bottom,0px) + 50px) clamp(14px,4vw,20px) !important; }
+  }
 </style>
 </head>
 <body>
