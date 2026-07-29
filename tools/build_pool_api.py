@@ -25,9 +25,10 @@ QUERIES=[
  "sitar funk","hammond organ jazz","blaxploitation soundtrack","spy jazz"
 ]
 ORDERS=["relevance","viewCount","rating","date"]
-BAD=re.compile(r'\b(1 hour|2 hour|3 hour|full album|mix|nonstop|non-stop|karaoke|tutorial|'
+BAD=re.compile(r'(\btype beat\b|typebeat|\bfree\b|prod\.|prod by|no copyright|copyright free|'
+               r'\b1 hour\b|\b2 hour\b|\b3 hour\b|full album|\bmix\b|nonstop|non-stop|karaoke|tutorial|'
                r'how to|reaction|live at|live in|lyrics?|documentary|interview|top \d|best of|'
-               r'compilation|playlist|mixtape|dj set|full ep|full lp|megamix|continuous)\b', re.I)
+               r'compilation|playlist|mixtape|dj set|full ep|full lp|megamix|continuous|sped up|slowed)', re.I)
 
 def iso_to_sec(s):
     m=re.match(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?',s or '')
