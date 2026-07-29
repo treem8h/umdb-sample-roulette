@@ -95,7 +95,8 @@
   /* tasto report (angolo schermo) */
   .flagbtn{position:absolute; top:6px; right:6px; z-index:4; appearance:none; border:0; cursor:pointer;
     width:27px; height:27px; border-radius:6px; background:rgba(0,0,0,.5); color:#ffb3a0; font-size:.9rem;
-    display:grid; place-items:center; transition:background .12s, color .12s, transform .05s}
+    display:none; place-items:center; transition:background .12s, color .12s, transform .05s}
+  .flagbtn.on{display:grid}          /* solo a brano caricato del tutto */
   .flagbtn:hover{background:var(--accent); color:#fff}
   .flagbtn:active{transform:scale(.9)}
 
@@ -120,8 +121,16 @@
   .sc-thumb::after{content:"► SOURCE"; position:absolute; left:0; right:0; bottom:0; font-family:"Courier New",monospace;
     font-size:.5rem; letter-spacing:.16em; text-align:center; color:#dff; background:rgba(0,0,0,.6); padding:3px 0; opacity:0; transition:opacity .15s}
   .sc-thumb:hover::after{opacity:1}
-  .sc-wave{flex:1 1 auto; position:relative; cursor:pointer; min-width:0}
+  .sc-wave{flex:1 1 auto; position:relative; cursor:crosshair; min-width:0; touch-action:none}
   #wave{width:100%; height:100%; display:block; touch-action:none}
+  /* freccina: riduce la thumb e allarga la waveform */
+  .wave-collapse{position:absolute; left:2px; top:50%; transform:translateY(-50%); z-index:4; width:15px; height:38px; border:0; cursor:pointer;
+    background:rgba(0,0,0,.4); color:var(--lcd); border-radius:4px; font-size:.8rem; line-height:1; display:grid; place-items:center; padding:0; opacity:.55; transition:opacity .15s, background .15s}
+  .wave-collapse:hover{opacity:1; background:rgba(0,0,0,.7)}
+  .zoombadge{position:absolute; right:4px; top:4px; z-index:4; font-family:"Courier New",monospace; font-size:.58rem; letter-spacing:.05em;
+    color:#0c1a0d; background:#9dff7e; padding:1px 5px; border-radius:3px; opacity:0; transition:opacity .15s; pointer-events:none}
+  .zoombadge.show{opacity:.92}
+  .sc-player.collapsed .sc-thumb{display:none}
 
   .novid{position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center;
     color:var(--lcd-dim); font-family:"Courier New",monospace; font-size:.82rem; letter-spacing:.15em; text-align:center; padding:18px; background:var(--lcd-bg)}
@@ -253,11 +262,14 @@
 
     <div class="plate">
       <div class="screen">
-        <div class="sc-player">
+        <div class="sc-player" id="scplayer">
           <a class="sc-thumb" id="thumb" href="#" target="_blank" rel="noopener" title="Apri il video sorgente su YouTube">
             <img id="thumbImg" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
           </a>
-          <div class="sc-wave" id="scwave"><canvas id="wave"></canvas></div>
+          <div class="sc-wave" id="scwave"><canvas id="wave"></canvas>
+            <button class="wave-collapse" id="waveCollapse" title="Ingrandisci waveform" aria-label="Riduci sorgente">‹</button>
+            <div class="zoombadge" id="zoombadge">1×</div>
+          </div>
           <div class="novid" id="novid">
             <span class="big">◉ UMDB ROULETTE</span>
             <span>hit RANDOM to pull<br>a sample to chop</span>
@@ -311,6 +323,7 @@
 
     <div class="tips">
       <div class="tip"><span class="ico">◉</span><span><b>Empty pad</b> saves the spot · <b>lit pad</b> jumps to it (instant cue)</span></div>
+      <div class="tip"><span class="ico">⤢</span><span><b>Pinch</b> o rotellina per zoomare la waveform · <b>doppio tap</b> reset · <b>‹</b> ingrandisce</span></div>
       <div class="tip kbtip"><span class="ico">⌨</span><span>pads from keyboard</span>
         <span class="keys"><kbd>1234</kbd><kbd>QWER</kbd><kbd>ASDF</kbd><kbd>ZXCV</kbd></span></div>
     </div>
@@ -330,7 +343,7 @@
   // loader: sparisce dopo un attimo
   window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1600); });
   // registra il service worker (PWA installabile)
-  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=3').catch(()=>{})); }
 
   const AUDIO='/a/';                    // stesso dominio: sampler.francescopavani.it/a/<id>
   const $=s=>document.querySelector(s);
@@ -352,54 +365,76 @@
     history=history.slice(0,60); localStorage.setItem('umdb_history',JSON.stringify(history)); renderHistory(); }
 
   /* ===== MOTORE AUDIO (Web Audio) — cue ISTANTANEO ===== */
-  let ac=null, gain=null, buffer=null, srcNode=null, startedAt=0, offset=0, playing=false, curDur=0, loadTok=0, stopping=false, loadingActive=false, loadPhase=0;
+  let ac=null, gain=null, buffer=null, srcNode=null, srcGen=0, startedAt=0, offset=0, playing=false, curDur=0, loadTok=0, loadingActive=false, loadPhase=0;
   function ensureAC(){ if(!ac){ ac=new (window.AudioContext||window.webkitAudioContext)(); gain=ac.createGain(); gain.connect(ac.destination); }
     if(ac.state==='suspended') ac.resume(); return ac; }
-  function stopSrc(){ if(srcNode){ stopping=true; try{srcNode.stop();}catch(e){} try{srcNode.disconnect();}catch(e){} srcNode=null; stopping=false; } }
+  // FIX BUG "manda in fondo": azzero onended PRIMA di stop → l'evented ritardato non sovrascrive più lo stato
+  function stopSrc(){ if(srcNode){ try{srcNode.onended=null;}catch(e){} try{srcNode.stop();}catch(e){} try{srcNode.disconnect();}catch(e){} srcNode=null; } }
   function curTime(){ return playing? Math.min(curDur, offset+(ac.currentTime-startedAt)) : offset; }
   function setPlay(){ $('#playpause').textContent=playing?'Pause':'Play'; }
   function startAt(t){ ensureAC(); if(!buffer)return; stopSrc();
     offset=Math.max(0,Math.min(curDur,t||0));
-    srcNode=ac.createBufferSource(); srcNode.buffer=buffer; srcNode.connect(gain);
-    srcNode.start(0,offset); startedAt=ac.currentTime; playing=true;
-    srcNode.onended=()=>{ if(!stopping){ playing=false; offset=curDur; setPlay(); paint(); } };
-    setPlay(); paint(); }
+    const node=ac.createBufferSource(); node.buffer=buffer; node.connect(gain);
+    const gen=++srcGen; node.start(0,offset); srcNode=node; startedAt=ac.currentTime; playing=true;
+    // solo l'ULTIMO nodo (gen corrente) può segnare "finito" → niente più salti in fondo fantasma
+    node.onended=()=>{ if(gen===srcGen){ playing=false; offset=curDur; setPlay(); paint(); } };
+    setPlay(); followView(true); paint(); }
   function pauseA(){ if(!playing)return; offset=curTime(); stopSrc(); playing=false; setPlay(); paint(); }
   function togglePlay(){ if(!buffer)return; playing? pauseA() : startAt(offset>=curDur-0.05?0:offset); }
 
-  async function loadAudio(id){ ensureAC(); const tok=++loadTok; stopSrc(); playing=false; buffer=null; peaks=null; curDur=0; offset=0;
-    setPlay(); loadingActive=true; setMsg('EXTRACTING…'); updateClock();
+  async function loadAudio(id){ ensureAC(); const tok=++loadTok; stopSrc(); playing=false; buffer=null; peaks=null; curDur=0; offset=0; zoom=1; viewStart=0;
+    setPlay(); showFlag(false); loadingActive=true; setMsg('EXTRACTING…'); updateClock(); updateZoomBadge();
     $('#thumb').href='https://youtu.be/'+id;
     $('#thumbImg').src='https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
     try{
       const res=await fetch(AUDIO+id); if(!res.ok) throw 0;
       const ab=await res.arrayBuffer(); if(tok!==loadTok) return;
       buffer=await ac.decodeAudioData(ab); if(tok!==loadTok) return;
-      curDur=buffer.duration; computePeaks(); loadingActive=false; setMsg('READY'); startAt(0);
+      curDur=buffer.duration; computePeaks(); loadingActive=false; showFlag(true); setMsg('READY'); startAt(0);
     }catch(e){ if(tok!==loadTok) return; loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); }
   }
+  function showFlag(b){ const f=$('#reportBtn'); if(f) f.classList.toggle('on',!!b); }
 
-  /* ===== WAVEFORM ===== */
-  const NB=150; let peaks=null;
-  const wave=$('#wave'), wc=wave.getContext('2d');
-  function sizeWave(){ const dpr=Math.min(2,window.devicePixelRatio||1); const w=wave.clientWidth||280, h=wave.clientHeight||100;
+  /* ===== WAVEFORM + ZOOM ===== */
+  const HIRES=2000; let peaks=null;               // picchi ad alta risoluzione → zoom nitido
+  let zoom=1, viewStart=0; const MAXZOOM=48;
+  const wave=$('#wave'), wc=wave.getContext('2d'), scwave=$('#scwave');
+  function sizeWave(){ const dpr=Math.min(2,window.devicePixelRatio||1); const w=Math.max(40,wave.clientWidth), h=Math.max(40,wave.clientHeight);
     wave.width=Math.round(w*dpr); wave.height=Math.round(h*dpr); wc.setTransform(dpr,0,0,dpr,0,0); }
-  function computePeaks(){ const ch=buffer.getChannelData(0), n=ch.length, blk=Math.max(1,Math.floor(n/NB)); peaks=new Float32Array(NB);
-    let mx=0; for(let i=0;i<NB;i++){ let m=0; const s=i*blk, e=Math.min(n,s+blk); for(let j=s;j<e;j+=2){ const a=Math.abs(ch[j]); if(a>m)m=a; } peaks[i]=m; if(m>mx)mx=m; }
-    if(mx>0) for(let i=0;i<NB;i++) peaks[i]=peaks[i]/mx; }
-  function drawWave(){ const W=wave.clientWidth,H=wave.clientHeight,mid=H/2; wc.clearRect(0,0,W,H); if(!peaks) return;
-    const prog=curDur? curTime()/curDur:0, bw=W/NB, gap=Math.max(1,bw*0.34);
-    for(let i=0;i<NB;i++){ const h=Math.max(2,peaks[i]*(H-4)); const x=i*bw; const played=(i+0.5)/NB<=prog;
-      wc.fillStyle=played?'#9dff7e':'#2c5628'; wc.fillRect(x,mid-h/2,Math.max(1,bw-gap),h); }
-    if(curDur) pads.forEach(t=>{ if(t!=null){ const x=(t/curDur)*W; wc.fillStyle='#ffb020'; wc.fillRect(x-0.6,0,1.4,H);
-      wc.beginPath(); wc.moveTo(x-3,0); wc.lineTo(x+3,0); wc.lineTo(x,4); wc.closePath(); wc.fill(); } });
-    const x=prog*W; wc.fillStyle='#eaffe0'; wc.fillRect(x-0.6,0,1.6,H); }
-  function drawLoading(){ const W=wave.clientWidth,H=wave.clientHeight,mid=H/2,bw=W/NB,gap=Math.max(1,bw*0.34); wc.clearRect(0,0,W,H);
-    for(let i=0;i<NB;i++){ const d=Math.abs((i/NB)-loadPhase); const g=Math.max(0,1-d*7); const amp=0.10+0.55*g; const h=Math.max(2,amp*(H-4)*0.7); const x=i*bw;
-      wc.globalAlpha=0.45+0.55*g; wc.fillStyle=g>0.2?'#9dff7e':'#274a24'; wc.fillRect(x,mid-h/2,Math.max(1,bw-gap),h);} wc.globalAlpha=1; }
+  function computePeaks(){ const ch=buffer.getChannelData(0), n=ch.length, blk=Math.max(1,Math.floor(n/HIRES)); peaks=new Float32Array(HIRES);
+    let mx=0; for(let i=0;i<HIRES;i++){ let m=0; const s=i*blk, e=Math.min(n,s+blk); for(let j=s;j<e;j+=2){ const a=Math.abs(ch[j]); if(a>m)m=a; } peaks[i]=m; if(m>mx)mx=m; }
+    if(mx>0) for(let i=0;i<HIRES;i++) peaks[i]=peaks[i]/mx; }
+  function winSpan(){ return curDur/zoom; }
+  function clampView(){ const span=winSpan(); viewStart=Math.max(0,Math.min(Math.max(0,curDur-span),viewStart)); }
+  function followView(reset){ if(!curDur||zoom<=1){ viewStart=0; return; } const span=winSpan(), t=curTime();
+    if(reset || t<viewStart || t>viewStart+span){ viewStart=t-span*0.3; } clampView(); }
+  function drawWave(){ const W=wave.clientWidth,H=wave.clientHeight,mid=H/2; wc.clearRect(0,0,W,H); if(!peaks||!curDur) return;
+    clampView(); const a=viewStart, span=winSpan(), b=a+span, prog=curTime();
+    const nb=Math.max(1,Math.floor(W/3)), cw=W/nb;
+    for(let i=0;i<nb;i++){ const t0=a+(i/nb)*span, t1=a+((i+1)/nb)*span;
+      let m=0, k0=Math.floor(t0/curDur*HIRES), k1=Math.max(k0+1,Math.ceil(t1/curDur*HIRES));
+      for(let k=k0;k<k1&&k<HIRES;k++){ if(k>=0&&peaks[k]>m)m=peaks[k]; }
+      const h=Math.max(2,m*(H-6)), x=i*cw; wc.fillStyle=(t1<=prog)?'#9dff7e':'#2c5628'; wc.fillRect(x,mid-h/2,Math.max(1,cw-1),h); }
+    // MARCATORI PAD numerati (solo quelli dentro la finestra visibile)
+    wc.textAlign='center'; wc.textBaseline='bottom';
+    pads.forEach((t,idx)=>{ if(t==null||t<a||t>b) return; const x=(t-a)/span*W;
+      wc.fillStyle='#ffb020'; wc.fillRect(x-0.7,0,1.4,H);
+      wc.beginPath(); wc.moveTo(x-4,0); wc.lineTo(x+4,0); wc.lineTo(x,5); wc.closePath(); wc.fill();
+      wc.font='700 9px "Courier New",monospace'; wc.fillText(String(idx+1),x,H); });
+    // playhead
+    const px=(prog-a)/span*W; if(px>=-1&&px<=W+1){ wc.fillStyle='#eaffe0'; wc.fillRect(px-0.7,0,1.6,H); } }
+  function drawLoading(){ const W=wave.clientWidth,H=wave.clientHeight,mid=H/2, nb=Math.max(1,Math.floor(W/3)), cw=W/nb; wc.clearRect(0,0,W,H);
+    for(let i=0;i<nb;i++){ const d=Math.abs((i/nb)-loadPhase); const g=Math.max(0,1-d*7); const amp=0.10+0.5*g; const h=Math.max(2,amp*(H-6)); const x=i*cw;
+      wc.globalAlpha=0.4+0.6*g; wc.fillStyle=g>0.2?'#9dff7e':'#274a24'; wc.fillRect(x,mid-h/2,Math.max(1,cw-1),h);} wc.globalAlpha=1; }
   function updateClock(){ clock.textContent=fmt(curTime())+' / '+fmt(curDur); }
+  function updateZoomBadge(){ const z=$('#zoombadge'); if(!z)return; const zz=Math.round(zoom*10)/10; z.textContent=(zoom<1.05?'1×':zz+'×'); z.classList.toggle('show',zoom>1.05); }
   function paint(){ drawWave(); updateClock(); }
-  function tick(){ if(loadingActive){ loadPhase=(loadPhase+0.02)%1; drawLoading(); } else if(playing){ drawWave(); updateClock(); } requestAnimationFrame(tick); }
+  function tick(){ if(loadingActive){ loadPhase=(loadPhase+0.02)%1; drawLoading(); } else if(playing){ followView(false); drawWave(); updateClock(); } requestAnimationFrame(tick); }
+
+  /* zoom helpers */
+  function timeAtX(clientX){ const r=wave.getBoundingClientRect(); const f=Math.max(0,Math.min(1,(clientX-r.left)/r.width)); return viewStart+f*winSpan(); }
+  function setZoomAt(z, clientX){ if(!curDur)return; const r=wave.getBoundingClientRect(); const f=Math.max(0,Math.min(1,(clientX-r.left)/r.width));
+    const centerT=viewStart+f*winSpan(); zoom=Math.max(1,Math.min(MAXZOOM,z)); viewStart=centerT-f*winSpan(); clampView(); updateZoomBadge(); if(!playing)drawWave(); }
 
   /* ===== PADS (per-canzone) ===== */
   let padMap=JSON.parse(localStorage.getItem('umdb_padmap')||'{}'); let pads=Array(16).fill(null); let clearMode=false;
@@ -428,9 +463,30 @@
   $('#restart').addEventListener('click',()=>{ if(!buffer)return; startAt(0); setMsg('◄ START'); });
   $('#shift').addEventListener('click',e=>{ clearMode=!clearMode; e.currentTarget.classList.toggle('on',clearMode); renderPads(); setMsg(clearMode?'CLEAR MODE':'READY'); });
   $('#clearall').addEventListener('click',()=>{ pads=Array(16).fill(null); savePads(); renderPads(); drawWave(); setMsg('RESET'); });
-  $('#scwave').addEventListener('click',e=>{ if(!buffer)return; const r=wave.getBoundingClientRect(); const f=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)); startAt(f*curDur); setMsg('► '+fmt(f*curDur)); });
   document.querySelectorAll('.jbtn').forEach(b=>b.addEventListener('click',()=>{ if(!buffer)return; const d=+b.dataset.d; const t=Math.max(0,Math.min(curDur,curTime()+d)); startAt(t); setMsg((d>0?'►+':'◄')+Math.abs(d)+'s  '+fmt(t)); }));
   window.addEventListener('keydown',e=>{ if(e.target.closest('a'))return; const i=KEYS.indexOf(e.key.toLowerCase()); if(i>=0){ e.preventDefault(); hitPad(i); } if(e.key===' '){ e.preventDefault(); togglePlay(); } });
+
+  /* ===== WAVEFORM: tap=seek · drag=pan (se zoom) · pinch/rotellina=zoom · doppio tap=reset ===== */
+  const ptrs=new Map(); let dragStartX=0, dragStartView=0, dragged=false, pinchDist=0, pinchZoom=1, lastTap=0;
+  scwave.addEventListener('pointerdown',e=>{ if(!buffer)return; try{scwave.setPointerCapture(e.pointerId);}catch(_){} ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1){ dragStartX=e.clientX; dragStartView=viewStart; dragged=false; }
+    else if(ptrs.size===2){ const p=[...ptrs.values()]; pinchDist=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y); pinchZoom=zoom; } });
+  scwave.addEventListener('pointermove',e=>{ if(!ptrs.has(e.pointerId))return; ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size>=2){ const p=[...ptrs.values()]; const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y); if(pinchDist>0){ setZoomAt(pinchZoom*(d/pinchDist),(p[0].x+p[1].x)/2); } dragged=true; return; }
+    const dx=e.clientX-dragStartX; if(Math.abs(dx)>4)dragged=true;
+    if(zoom>1&&dragged){ const r=wave.getBoundingClientRect(); viewStart=dragStartView-(dx/r.width)*winSpan(); clampView(); if(!playing)drawWave(); } });
+  function endPtr(e){ if(!ptrs.has(e.pointerId))return; const wasSingle=ptrs.size===1; ptrs.delete(e.pointerId); try{scwave.releasePointerCapture(e.pointerId);}catch(_){}
+    if(ptrs.size<2)pinchDist=0;
+    if(wasSingle&&!dragged&&buffer){ const now=e.timeStamp;
+      if(now-lastTap<300){ zoom=1; viewStart=0; updateZoomBadge(); drawWave(); setMsg('ZOOM 1×'); lastTap=0; }   // doppio tap = reset
+      else { lastTap=now; const t=timeAtX(e.clientX); startAt(t); setMsg('► '+fmt(t)); } } }
+  scwave.addEventListener('pointerup',endPtr); scwave.addEventListener('pointercancel',endPtr);
+  scwave.addEventListener('wheel',e=>{ if(!buffer)return; e.preventDefault(); setZoomAt(zoom*(e.deltaY<0?1.2:1/1.2),e.clientX); },{passive:false});
+  // freccina: riduce la thumb → waveform grande (e viceversa)
+  $('#waveCollapse').addEventListener('pointerdown',e=>e.stopPropagation());
+  $('#waveCollapse').addEventListener('click',e=>{ e.stopPropagation(); const p=$('#scplayer'); const c=p.classList.toggle('collapsed');
+    e.currentTarget.textContent=c?'›':'‹'; e.currentTarget.title=c?'Mostra sorgente':'Ingrandisci waveform';
+    requestAnimationFrame(()=>{ sizeWave(); drawWave(); }); });
 
   /* ===== storico ===== */
   function decodeE(s){ const t=document.createElement('textarea'); t.innerHTML=s||''; return t.value; }
