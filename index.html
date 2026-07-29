@@ -126,8 +126,9 @@
   /* freccina: riduce la thumb e allarga la waveform */
   .wave-collapse{position:absolute; left:3px; top:50%; transform:translateY(-50%); z-index:4; width:21px; height:48px; cursor:pointer;
     border:1px solid rgba(157,255,126,.55); background:rgba(10,26,13,.74); color:var(--lcd); border-radius:5px; font-size:1.05rem; line-height:1;
-    display:grid; place-items:center; padding:0; opacity:.92; text-shadow:0 0 6px var(--lcd-glow);
+    display:none; place-items:center; padding:0; opacity:.92; text-shadow:0 0 6px var(--lcd-glow);
     box-shadow:0 0 8px rgba(0,0,0,.5), inset 0 0 5px rgba(157,255,126,.22); transition:opacity .15s, background .15s}
+  .wave-collapse.on{display:grid}    /* solo quando c'è una traccia caricata */
   .wave-collapse:hover{opacity:1; background:rgba(10,26,13,.95)}
   .zoombadge{position:absolute; right:4px; bottom:4px; z-index:4; font-family:"Courier New",monospace; font-size:.58rem; letter-spacing:.05em;
     color:#0c1a0d; background:#9dff7e; padding:1px 5px; border-radius:3px; opacity:0; transition:opacity .15s; pointer-events:none}
@@ -213,22 +214,33 @@
   .pad.sel{outline:3px solid var(--accent); outline-offset:-3px;
     box-shadow:0 4px 0 #8f8d83, 0 0 16px rgba(255,90,31,.6), inset 0 1px 0 rgba(255,255,255,.85)}
 
-  /* ===== KNOB console (sotto lo schermo) ===== */
-  .knobs{display:flex; justify-content:space-around; gap:10px; margin-top:12px; padding:10px 8px; border-radius:11px;
+  /* ===== CONSOLE: knob VINTAGE (cap avorio + ghiera zigrinata) + transport ===== */
+  .console{display:flex; align-items:center; gap:9px; margin-top:12px; padding:10px; border-radius:12px;
     background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border:1px solid var(--groove);
     box-shadow:0 2px 5px rgba(0,0,0,.4) inset, 0 1px 0 rgba(255,255,255,.12)}
-  .knob{display:flex; flex-direction:column; align-items:center; gap:5px; flex:1}
-  .knob .dial{position:relative; width:48px; height:48px; border-radius:50%; cursor:ns-resize; touch-action:none;
-    background:radial-gradient(circle at 50% 34%, #55554f, #2a2a27 62%, #1a1a18);
-    border:1px solid #0d0d0c; box-shadow:0 3px 5px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.18), inset 0 -3px 6px rgba(0,0,0,.5)}
-  .knob .dial::after{content:""; position:absolute; left:50%; top:5px; width:3px; height:16px; margin-left:-1.5px; border-radius:2px;
-    background:var(--lcd); box-shadow:0 0 6px var(--lcd-glow); transform-origin:50% 19px; transform:rotate(var(--a,-135deg))}
-  .knob .kl{font-size:.55rem; letter-spacing:.14em; text-transform:uppercase; color:var(--txt-dim); font-weight:800}
-  .knob .kv{font-family:"Courier New",monospace; font-size:.62rem; color:var(--lcd); background:var(--lcd-bg); padding:1px 6px; border-radius:3px;
-    min-width:48px; text-align:center; box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
+  .knob{display:flex; flex-direction:column; align-items:center; gap:4px; flex:0 0 auto}
+  .knob .dial{position:relative; width:38px; height:38px; border-radius:50%; cursor:ns-resize; touch-action:none;
+    background:radial-gradient(circle at 50% 40%, #d9d5cb, #b3aea3 66%, #98948a) padding-box,
+      repeating-conic-gradient(#25241f 0deg 7.5deg, #4b4941 7.5deg 15deg) border-box;
+    border:4px solid transparent; box-shadow:0 2px 3px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.7)}
+  .knob .dial::after{content:""; position:absolute; left:50%; top:4px; width:2.5px; height:11px; margin-left:-1.25px; border-radius:1px;
+    background:#2a2a28; transform-origin:50% 15px; transform:rotate(var(--a,-135deg))}
+  .knob .kl{font-size:.5rem; letter-spacing:.05em; text-transform:uppercase; color:var(--txt-dim); font-weight:800; white-space:nowrap}
+  .knob .kv{font-family:"Courier New",monospace; font-size:.58rem; color:var(--lcd); background:var(--lcd-bg); padding:1px 5px; border-radius:3px;
+    min-width:44px; text-align:center; box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
+  .console .tr{flex:1 1 auto; display:flex; gap:8px; align-self:stretch}
+  .console .tr .key{flex:1; margin:0}
+  .console .tr .key.sq{flex:0 0 46px; text-align:center; padding-left:0; font-size:1.15rem}
+  .console .tr .key.sq::before{display:none}
 
-  /* ===== EDIT PAD + nudge fine ===== */
-  .key.editpad{width:100%; margin-top:8px; color:#4a2f08; background:linear-gradient(180deg,#ffce78,#e0a63a); border-color:#b47a1c;
+  /* RANDOM grande */
+  .bigrow{margin-top:12px}
+  .key.big{width:100%; text-align:center; padding:16px 14px; font-size:1.05rem; letter-spacing:.18em}
+
+  /* EDIT PAD in riga con Clear/Reset, fuori dall'azzurro */
+  .editrow{display:grid; grid-template-columns:2fr 1fr; gap:8px; margin-top:12px; align-items:stretch}
+  .editrow .group.clean{margin-top:0}
+  .key.editpad{margin:0; height:100%; color:#4a2f08; background:linear-gradient(180deg,#ffce78,#e0a63a); border-color:#b47a1c;
     box-shadow:0 4px 0 #9c6a17, 0 5px 8px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.5) inset}
   .key.editpad::before{background:#7a5216; box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
   .key.editpad.on::before{background:#67e05a; box-shadow:0 0 9px var(--led-grn)}
@@ -327,11 +339,17 @@
       </div>
     </div>
 
-    <!-- KNOB console: SPEED (pitch+tempo insieme) · ZOOM (waveform) -->
-    <div class="knobs">
-      <div class="knob" id="knobSpeed"><div class="dial" title="Pitch + tempo (varispeed) — doppio clic = 1.00×"></div><span class="kl">Speed</span><span class="kv">×1.00</span></div>
+    <!-- CONSOLE: knob vintage (Pitch+Tempo · Zoom) + transport (Play · torna a inizio) -->
+    <div class="console">
+      <div class="knob" id="knobSpeed"><div class="dial" title="Pitch + tempo insieme (varispeed) — doppio clic = 1.00×"></div><span class="kl">Pitch+Tempo</span><span class="kv">×1.00</span></div>
       <div class="knob" id="knobZoom"><div class="dial" title="Zoom waveform — doppio clic = 1×"></div><span class="kl">Zoom</span><span class="kv">1.0×</span></div>
+      <div class="tr">
+        <button class="key" id="playpause">Play</button>
+        <button class="key sq" id="restart" title="Torna a inizio" aria-label="Torna a inizio">↺</button>
+      </div>
     </div>
+
+    <div class="bigrow"><button class="key accent big" id="random">Random</button></div>
 
     <div class="group nav">
       <div class="jog">
@@ -348,23 +366,16 @@
       </div>
     </div>
 
-    <div class="controls">
-      <button class="key accent" id="random">Random</button>
-      <div class="duo">
-        <button class="key" id="playpause">Play</button>
-        <button class="key sq" id="restart" title="Restart" aria-label="Restart">↺</button>
+    <!-- EDIT PAD in riga con Clear/Reset ma fuori dall'azzurro -->
+    <div class="editrow">
+      <div class="group clean">
+        <div class="cleanrow">
+          <button class="key" id="shift">Clear pad</button>
+          <button class="key" id="clearall">Reset</button>
+        </div>
       </div>
+      <button class="key editpad" id="editpad">Edit pad</button>
     </div>
-
-    <div class="group clean">
-      <div class="cleanrow">
-        <button class="key" id="shift">Clear pad</button>
-        <button class="key" id="clearall">Reset</button>
-      </div>
-    </div>
-
-    <!-- EDIT PAD: attivi → scegli un pad → lo sposti al centesimo con i tasti fini -->
-    <button class="key editpad" id="editpad">Edit pad</button>
     <div class="nudgebar" id="nudgebar">
       <span class="nudgeinfo" id="nudgeinfo">tocca un pad acceso</span>
       <div class="nudgebtns">
@@ -401,7 +412,7 @@
   // loader: sparisce dopo un attimo
   window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1600); });
   // registra il service worker (PWA installabile)
-  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=4').catch(()=>{})); }
+  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=5').catch(()=>{})); }
 
   const AUDIO='/a/';                    // stesso dominio: sampler.francescopavani.it/a/<id>
   const $=s=>document.querySelector(s);
@@ -454,7 +465,7 @@
       curDur=buffer.duration; computePeaks(); loadingActive=false; showFlag(true); setMsg('READY'); startAt(0);
     }catch(e){ if(tok!==loadTok) return; loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); }
   }
-  function showFlag(b){ const f=$('#reportBtn'); if(f) f.classList.toggle('on',!!b); }
+  function showFlag(b){ const f=$('#reportBtn'); if(f) f.classList.toggle('on',!!b); const a=$('#waveCollapse'); if(a) a.classList.toggle('on',!!b); }
 
   /* ===== WAVEFORM + ZOOM ===== */
   const HIRES=2000; let peaks=null;               // picchi ad alta risoluzione → zoom nitido
