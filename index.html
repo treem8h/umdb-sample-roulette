@@ -250,14 +250,19 @@
   .key.editpad.on{background:linear-gradient(180deg,#585751,#3f3e3a)}
   .key.editpad.on::before{background:#67e05a; box-shadow:0 0 9px var(--led-grn)}
 
-  /* ===== LOOP bar (IN / OUT / LOOP) ===== */
-  .loopbar{display:grid; grid-template-columns:1fr 1fr 1.3fr; gap:8px; margin-top:12px}
-  .lpb{appearance:none; border:0; cursor:pointer; font-family:inherit; font-weight:800; font-size:.74rem; letter-spacing:.1em; text-transform:uppercase;
-    color:var(--key-txt); background:linear-gradient(180deg,var(--key),var(--key-lo)); border:1px solid var(--key-edge); border-radius:9px; padding:11px 6px;
-    box-shadow:0 4px 0 var(--key-edge), 0 5px 8px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.9) inset; transition:transform .04s, box-shadow .04s}
-  .lpb:active{transform:translateY(4px); box-shadow:0 0 0 var(--key-edge), inset 0 2px 4px rgba(0,0,0,.28)}
+  /* ===== LOOP module (sezione stile MPC dentro la console) ===== */
+  .looprack{flex:1 1 auto; align-self:stretch; display:flex; flex-direction:column; justify-content:center; gap:5px;
+    background:linear-gradient(180deg,#1b1f2b,#12151d); border:1px solid #090b12; border-radius:9px; padding:6px 8px;
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.6), inset 0 0 0 1px rgba(78,116,181,.14), 0 1px 0 rgba(255,255,255,.05)}
+  .looplbl{font-size:.5rem; letter-spacing:.24em; font-weight:800; text-transform:uppercase; text-align:center; color:#6088ba; text-shadow:0 0 6px rgba(46,116,181,.45)}
+  .loopbtns{display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px}
+  .lpb{appearance:none; border:0; cursor:pointer; font-family:inherit; font-weight:800; font-size:.62rem; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--key-txt); background:linear-gradient(180deg,var(--key),var(--key-lo)); border:1px solid var(--key-edge); border-radius:6px; padding:8px 2px;
+    box-shadow:0 3px 0 var(--key-edge), 0 4px 5px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.9) inset; transition:transform .04s, box-shadow .04s}
+  .lpb:active{transform:translateY(3px); box-shadow:0 0 0 var(--key-edge), inset 0 2px 3px rgba(0,0,0,.28)}
+  .lpb.loop{font-size:.85rem; line-height:1}
   .lpb.loop.on{color:#fff; background:linear-gradient(180deg,var(--blue),#245e94); border-color:#1d4e7c;
-    box-shadow:0 4px 0 #163a5c, 0 0 14px rgba(46,116,181,.55), 0 1px 0 rgba(255,255,255,.2) inset}
+    box-shadow:0 3px 0 #163a5c, 0 0 14px rgba(46,116,181,.6), 0 1px 0 rgba(255,255,255,.2) inset}
   .nudgebar{display:none; margin-top:8px; padding:9px 8px; border-radius:10px;
     background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border:1px solid var(--groove); box-shadow:0 2px 5px rgba(0,0,0,.4) inset}
   .nudgebar.on{display:block}
@@ -363,23 +368,26 @@
       </div>
     </div>
 
-    <!-- CONSOLE: knob vintage (Pitch+Tempo · Zoom) + transport (Play · torna a inizio) -->
+    <!-- CONSOLE: knob vintage (Pitch+Tempo · Zoom) + modulo LOOP stile MPC -->
     <div class="console">
       <div class="knob" id="knobSpeed"><div class="dial" title="Pitch + tempo insieme (varispeed) — doppio clic = 1.00×"></div><span class="kl">Pitch+Tempo</span><span class="kv">×1.00</span></div>
       <div class="knob" id="knobZoom"><div class="dial" title="Zoom waveform — doppio clic = 1×"></div><span class="kl">Zoom</span><span class="kv">1.0×</span></div>
-      <div class="tr">
-        <button class="key" id="playpause">Play</button>
-        <button class="key sq" id="restart" title="Torna a inizio" aria-label="Torna a inizio">↺</button>
+      <div class="looprack">
+        <span class="looplbl">Loop</span>
+        <div class="loopbtns">
+          <button class="lpb" id="loopIn" title="Segna inizio loop">IN</button>
+          <button class="lpb" id="loopOut" title="Segna fine loop">OUT</button>
+          <button class="lpb loop" id="loopTog" title="Attiva/disattiva loop" aria-label="Loop">⟳</button>
+        </div>
       </div>
     </div>
 
-    <div class="bigrow"><button class="key accent big" id="random">Random</button></div>
-
-    <!-- LOOP: segna IN e OUT, poi LOOP mette in ciclo solo quel pezzo -->
-    <div class="loopbar">
-      <button class="lpb" id="loopIn" title="Segna inizio loop">IN</button>
-      <button class="lpb" id="loopOut" title="Segna fine loop">OUT</button>
-      <button class="lpb loop" id="loopTog" title="Attiva/disattiva loop">LOOP</button>
+    <div class="controls">
+      <button class="key accent" id="random">Random</button>
+      <div class="duo">
+        <button class="key" id="playpause">Play</button>
+        <button class="key sq" id="restart" title="Torna a inizio" aria-label="Torna a inizio">↺</button>
+      </div>
     </div>
 
     <div class="group nav">
