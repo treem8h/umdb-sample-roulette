@@ -49,7 +49,7 @@ if os.path.exists(OUT):
                     views=int(it.get('statistics',{}).get('viewCount',0) or 0)
                     if d<45 or d>600: continue
                     if not it.get('status',{}).get('embeddable',True): continue
-                    if views>100000: continue
+                    if views>30000: continue
                     t=tmap.get(vid,'')
                     if BAD.search(t): continue
                     pool[vid]={"id":vid,"d":d,"t":t[:80],"v":views}
@@ -79,7 +79,7 @@ for qi,q in enumerate(QUERIES):
                     views=int(it.get('statistics',{}).get('viewCount',0) or 0)
                     if d<45 or d>600: continue
                     if not st.get('embeddable',True): continue
-                    if views>100000: continue          # digger: solo roba underground (< 100k views)
+                    if views>30000: continue          # digger: solo roba underground (< 30k views (underground digger))
                     t=titles.get(vid,'')
                     if BAD.search(t): continue
                     if vid in pool: continue
