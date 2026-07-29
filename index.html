@@ -34,7 +34,7 @@
     background:radial-gradient(circle at 50% 28%, #f3f1eb, #d9d7d0 78%);
     color:var(--txt); font-weight:600;
     font-family:"PANEL","Arial Narrow",Arial,sans-serif;
-    padding:clamp(34px,9vh,90px) clamp(10px,3vw,44px); position:relative; overflow-x:hidden;
+    padding:clamp(12px,3vh,70px) clamp(10px,3vw,44px); position:relative; overflow-x:hidden;
   }
 
   /* ===== LOADER minimal ===== */
@@ -327,12 +327,10 @@
   // registra il service worker (PWA installabile)
   if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 
-  let POOL = [], curTrack = null, ytReady=false, autoRolled=false;
+  let POOL = [], curTrack = null, ytReady=false;
   // blocklist: video segnalati "not music" → esclusi (persistente)
   let blocked = new Set(JSON.parse(localStorage.getItem('umdb_block')||'[]'));
-  fetch('videos.json').then(r=>r.json()).then(d=>{ POOL=d.filter(v=>!blocked.has(v.id)); tryAutoRoll(); }).catch(()=>{ POOL=[]; });
-  // all'apertura: pesca SUBITO un sample casuale (mai lo stesso, mai "me at the zoo")
-  function tryAutoRoll(){ if(ytReady && POOL.length && !autoRolled){ autoRolled=true; rollRandom(); } }
+  fetch('videos.json').then(r=>r.json()).then(d=>{ POOL=d.filter(v=>!blocked.has(v.id)); }).catch(()=>{ POOL=[]; });
   const KEYS = ['1','2','3','4','q','w','e','r','a','s','d','f','z','x','c','v'];
   // no-repeat: non ripescare finché non hai visto tutto il pool (persistente)
   let seen = new Set(JSON.parse(localStorage.getItem('umdb_seen')||'[]'));
@@ -379,10 +377,12 @@
         onError:()=>{ setMsg('SKIP…'); setTimeout(rollRandom,300); },   // video non riproducibile → ripesca
         onStateChange:e=>{ if(e.data===1){dur=player.getDuration();setMsg('PLAY'); $('#playpause').textContent='Pause';}
           if(e.data===2){setMsg('PAUSE'); $('#playpause').textContent='Play';} }}}); }
-  function rollRandom(){ const v=pick(); curTrack=v; setMsg('◉ ROULETTE…'); loadVideo(v.id); addHistory(v); bumpSub();
+  function rollRandom(){ if(!POOL.length){ setMsg('LOADING POOL…'); return; }
+    if(!window.YT||!window.YT.Player){ setMsg('LOADING…'); setTimeout(rollRandom,300); return; }
+    const v=pick(); curTrack=v; setMsg('◉ ROULETTE…'); loadVideo(v.id); addHistory(v); bumpSub();
     const seek=()=>{ if(ready&&dur){ player.seekTo(Math.random()*dur*0.8,true); player.playVideo(); } else setTimeout(seek,250); }; setTimeout(seek,600); }
   function playTrack(v){ curTrack=v; loadVideo(v.id); setMsg('◉ '+(v.t||v.id).slice(0,22)); setTimeout(()=>{ if(ready)player.playVideo(); },500); }
-  window.onYouTubeIframeAPIReady=()=>{ ytReady=true; tryAutoRoll(); };
+  window.onYouTubeIframeAPIReady=()=>{ ytReady=true; };
   const tlfill=$('#tlfill');
   setInterval(()=>{ if(ready){ const t=player.getCurrentTime(); clock.textContent=fmt(t)+' / '+fmt(dur);
     tlfill.style.width=(dur? Math.min(100,t/dur*100):0)+'%'; } },200);
