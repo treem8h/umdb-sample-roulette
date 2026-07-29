@@ -1,5 +1,5 @@
 // UMDB Sample Roulette — service worker
-const CACHE = 'umdb-sampler-v9';
+const CACHE = 'umdb-sampler-v10';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './assets/logo.svg', './assets/desk.png',
