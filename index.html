@@ -133,6 +133,10 @@
   .zoombadge{position:absolute; right:4px; bottom:4px; z-index:4; font-family:"Courier New",monospace; font-size:.58rem; letter-spacing:.05em;
     color:#0c1a0d; background:#9dff7e; padding:1px 5px; border-radius:3px; opacity:0; transition:opacity .15s; pointer-events:none}
   .zoombadge.show{opacity:.92}
+  /* badge KEY (tonalità stimata) — in basso a sx della waveform */
+  .keybadge{position:absolute; left:4px; bottom:4px; z-index:4; font-family:"Courier New",monospace; font-size:.6rem; font-weight:700; letter-spacing:.04em;
+    color:#2a1a02; background:#ffb020; padding:1px 6px; border-radius:3px; opacity:0; transition:opacity .15s; pointer-events:none}
+  .keybadge.show{opacity:.95}
   .sc-player.collapsed .sc-thumb{display:none}
 
   .novid{position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center;
@@ -245,6 +249,15 @@
   .key.editpad::before{background:#6d6b64; box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
   .key.editpad.on{background:linear-gradient(180deg,#585751,#3f3e3a)}
   .key.editpad.on::before{background:#67e05a; box-shadow:0 0 9px var(--led-grn)}
+
+  /* ===== LOOP bar (IN / OUT / LOOP) ===== */
+  .loopbar{display:grid; grid-template-columns:1fr 1fr 1.3fr; gap:8px; margin-top:12px}
+  .lpb{appearance:none; border:0; cursor:pointer; font-family:inherit; font-weight:800; font-size:.74rem; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--key-txt); background:linear-gradient(180deg,var(--key),var(--key-lo)); border:1px solid var(--key-edge); border-radius:9px; padding:11px 6px;
+    box-shadow:0 4px 0 var(--key-edge), 0 5px 8px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.9) inset; transition:transform .04s, box-shadow .04s}
+  .lpb:active{transform:translateY(4px); box-shadow:0 0 0 var(--key-edge), inset 0 2px 4px rgba(0,0,0,.28)}
+  .lpb.loop.on{color:#fff; background:linear-gradient(180deg,var(--blue),#245e94); border-color:#1d4e7c;
+    box-shadow:0 4px 0 #163a5c, 0 0 14px rgba(46,116,181,.55), 0 1px 0 rgba(255,255,255,.2) inset}
   .nudgebar{display:none; margin-top:8px; padding:9px 8px; border-radius:10px;
     background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border:1px solid var(--groove); box-shadow:0 2px 5px rgba(0,0,0,.4) inset}
   .nudgebar.on{display:block}
@@ -329,6 +342,7 @@
           <div class="sc-wave" id="scwave"><canvas id="wave"></canvas>
             <button class="wave-collapse" id="waveCollapse" title="Ingrandisci waveform" aria-label="Riduci sorgente">‹</button>
             <div class="zoombadge" id="zoombadge">1×</div>
+            <div class="keybadge" id="keybadge" title="Tonalità stimata">–</div>
           </div>
           <div class="novid" id="novid">
             <span class="big">◉ UMDB ROULETTE</span>
@@ -360,6 +374,13 @@
     </div>
 
     <div class="bigrow"><button class="key accent big" id="random">Random</button></div>
+
+    <!-- LOOP: segna IN e OUT, poi LOOP mette in ciclo solo quel pezzo -->
+    <div class="loopbar">
+      <button class="lpb" id="loopIn" title="Segna inizio loop">IN</button>
+      <button class="lpb" id="loopOut" title="Segna fine loop">OUT</button>
+      <button class="lpb loop" id="loopTog" title="Attiva/disattiva loop">LOOP</button>
+    </div>
 
     <div class="group nav">
       <div class="jog">
@@ -446,15 +467,21 @@
   /* ===== MOTORE AUDIO (Web Audio) — cue ISTANTANEO ===== */
   let ac=null, gain=null, buffer=null, srcNode=null, srcGen=0, startedAt=0, offset=0, playing=false, curDur=0, loadTok=0, loadingActive=false, loadPhase=0;
   let rate=1; const RMIN=0.5, RMAX=1.5;   // varispeed: pitch+tempo insieme (come un giradischi/MPC)
-  function ensureAC(){ if(!ac){ ac=new (window.AudioContext||window.webkitAudioContext)(); gain=ac.createGain(); gain.connect(ac.destination); }
+  let loopIn=null, loopOut=null, loopOn=false;   // loop IN/OUT
+  function ensureAC(){ if(!ac){ ac=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'}); gain=ac.createGain(); gain.connect(ac.destination); }
     if(ac.state==='suspended') ac.resume(); return ac; }
   // FIX BUG "manda in fondo": azzero onended PRIMA di stop → l'evento ritardato non sovrascrive più lo stato
   function stopSrc(){ if(srcNode){ try{srcNode.onended=null;}catch(e){} try{srcNode.stop();}catch(e){} try{srcNode.disconnect();}catch(e){} srcNode=null; } }
-  function curTime(){ return playing? Math.min(curDur, offset+rate*(ac.currentTime-startedAt)) : offset; }
+  function curTime(){ if(!playing) return offset;
+    let t=offset+rate*(ac.currentTime-startedAt);
+    if(loopOn && loopIn!=null && loopOut!=null && loopOut>loopIn && t>loopOut){ const L=loopOut-loopIn; t=loopIn+((t-loopIn)%L); }
+    return Math.min(curDur,t); }
   function setPlay(){ $('#playpause').textContent=playing?'Pause':'Play'; }
   function startAt(t){ ensureAC(); if(!buffer)return; stopSrc();
     offset=Math.max(0,Math.min(curDur,t||0));
-    const node=ac.createBufferSource(); node.buffer=buffer; node.playbackRate.value=rate; node.connect(gain);
+    const node=ac.createBufferSource(); node.buffer=buffer; node.playbackRate.value=rate;
+    if(loopOn && loopIn!=null && loopOut!=null && loopOut>loopIn){ node.loop=true; node.loopStart=loopIn; node.loopEnd=loopOut; }
+    node.connect(gain);
     const gen=++srcGen; node.start(0,offset); srcNode=node; startedAt=ac.currentTime; playing=true;
     // solo l'ULTIMO nodo (gen corrente) può segnare "finito" → niente più salti in fondo fantasma
     node.onended=()=>{ if(gen===srcGen){ playing=false; offset=curDur; setPlay(); paint(); } };
@@ -464,8 +491,9 @@
   // cambio velocità: se sta suonando ribaso offset/startedAt col rate VECCHIO → nessun salto
   function setRate(r){ r=Math.max(RMIN,Math.min(RMAX,r)); if(playing){ offset=curTime(); startedAt=ac.currentTime; } rate=r; if(srcNode) srcNode.playbackRate.value=rate; }
 
-  async function loadAudio(id){ ensureAC(); const tok=++loadTok; stopSrc(); playing=false; buffer=null; peaks=null; curDur=0; offset=0; zoom=1; viewStart=0; selPad=-1; lastPad=-1; rate=1;
-    setPlay(); showFlag(false); loadingActive=true; setMsg('EXTRACTING…'); updateClock(); updateZoomBadge(); if(zoomKnob)zoomKnob.set(1); if(speedKnob)speedKnob.set(1); updateNudgeInfo();
+  async function loadAudio(id){ ensureAC(); const tok=++loadTok; stopSrc(); playing=false; buffer=null; peaks=null; curDur=0; offset=0; zoom=1; viewStart=0; selPad=-1; lastPad=-1; rate=1; loopIn=null; loopOut=null; loopOn=false;
+    setPlay(); showFlag(false); loadingActive=true; setMsg('EXTRACTING…'); updateClock(); updateZoomBadge(); if(zoomKnob)zoomKnob.set(1); if(speedKnob)speedKnob.set(1);
+    if($('#loopTog'))$('#loopTog').classList.remove('on'); const kb0=$('#keybadge'); if(kb0){ kb0.textContent='–'; kb0.classList.remove('show'); } updateNudgeInfo();
     $('#thumb').href='https://youtu.be/'+id;
     $('#thumbImg').src='https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
     try{
@@ -473,6 +501,7 @@
       const ab=await res.arrayBuffer(); if(tok!==loadTok) return;
       buffer=await ac.decodeAudioData(ab); if(tok!==loadTok) return;
       curDur=buffer.duration; computePeaks(); loadingActive=false; showFlag(true); setMsg('READY'); startAt(0);
+      const b=buffer; setTimeout(()=>{ if(b!==buffer)return; try{ const k=analyzeKey(b); if(b!==buffer)return; const kb=$('#keybadge'); if(kb){ kb.textContent=k; kb.classList.add('show'); } }catch(_){} }, 250);  // stima tonalità (non blocca il play)
     }catch(e){ if(tok!==loadTok) return; loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); }
   }
   function showFlag(b){ const f=$('#reportBtn'); if(f) f.classList.toggle('on',!!b); const a=$('#waveCollapse'); if(a) a.classList.toggle('on',!!b); }
@@ -503,6 +532,11 @@
       wc.fillStyle=sel?'#ff7a3f':'#ffb020'; wc.fillRect(x-(sel?1.1:0.7),0,sel?2.2:1.4,H);
       wc.beginPath(); wc.moveTo(x-4,0); wc.lineTo(x+4,0); wc.lineTo(x,5); wc.closePath(); wc.fill();
       wc.font='700 9px "Courier New",monospace'; wc.fillText(String(idx+1),x,H); });
+    // regione LOOP (banda blu tra IN e OUT)
+    if(loopIn!=null && loopOut!=null && loopOut>loopIn){ const lx1=(loopIn-a)/span*W, lx2=(loopOut-a)/span*W;
+      const cx1=Math.max(0,lx1), cx2=Math.min(W,lx2);
+      if(cx2>cx1){ wc.fillStyle=loopOn?'rgba(46,116,181,.32)':'rgba(46,116,181,.15)'; wc.fillRect(cx1,0,cx2-cx1,H); }
+      wc.fillStyle='#4a9be0'; if(lx1>=0&&lx1<=W)wc.fillRect(lx1-0.7,0,1.4,H); if(lx2>=0&&lx2<=W)wc.fillRect(lx2-0.7,0,1.4,H); }
     // playhead
     const px=(prog-a)/span*W; if(px>=-1&&px<=W+1){ wc.fillStyle='#eaffe0'; wc.fillRect(px-0.7,0,1.6,H); } }
   function drawLoading(){ const W=wave.clientWidth,H=wave.clientHeight,mid=H/2, nb=Math.max(1,Math.floor(W/3)), cw=W/nb; wc.clearRect(0,0,W,H);
@@ -522,6 +556,38 @@
     const c=(!playing && selPad>=0 && pads[selPad]!=null)? pads[selPad] : curTime(); viewStart=c-winSpan()/2; clampView(); if(!playing)drawWave(); }
   function zoomToSel(){ if(selPad<0||pads[selPad]==null)return; if(zoom<4){ zoom=8; if(zoomKnob)zoomKnob.set(zoom); } updateZoomBadge();
     viewStart=pads[selPad]-winSpan()/2; clampView(); drawWave(); }
+
+  /* ===== KEY DETECTION (chroma + Krumhansl-Schmuckler) — stima la tonalità ===== */
+  function fft(re,im){ const n=re.length;
+    for(let i=1,j=0;i<n;i++){ let bit=n>>1; for(;j&bit;bit>>=1) j^=bit; j^=bit;
+      if(i<j){ const tr=re[i];re[i]=re[j];re[j]=tr; const ti=im[i];im[i]=im[j];im[j]=ti; } }
+    for(let len=2;len<=n;len<<=1){ const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang), h=len>>1;
+      for(let i=0;i<n;i+=len){ let cr=1,ci=0;
+        for(let k=0;k<h;k++){ const ur=re[i+k], ui=im[i+k];
+          const vr=re[i+k+h]*cr - im[i+k+h]*ci, vi=re[i+k+h]*ci + im[i+k+h]*cr;
+          re[i+k]=ur+vr; im[i+k]=ui+vi; re[i+k+h]=ur-vr; im[i+k+h]=ui-vi;
+          const nr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=nr; } } } }
+  function analyzeKey(buf){ const sr=buf.sampleRate, ch=buf.getChannelData(0), N=4096;
+    const han=new Float64Array(N); for(let i=0;i<N;i++) han[i]=0.5-0.5*Math.cos(2*Math.PI*i/(N-1));
+    const re=new Float64Array(N), im=new Float64Array(N), chroma=new Float64Array(12);
+    const maxSamp=Math.min(ch.length, sr*45);
+    for(let s=0; s+N<=maxSamp; s+=N){
+      for(let i=0;i<N;i++){ re[i]=ch[s+i]*han[i]; im[i]=0; }
+      fft(re,im);
+      for(let k=2;k<N/2;k++){ const freq=k*sr/N; if(freq<55||freq>2000) continue;
+        const mag=re[k]*re[k]+im[k]*im[k]; const midi=69+12*Math.log2(freq/440); const pc=((Math.round(midi)%12)+12)%12; chroma[pc]+=mag; } }
+    let mx=0; for(let i=0;i<12;i++) mx=Math.max(mx,chroma[i]); if(mx>0) for(let i=0;i<12;i++) chroma[i]/=mx;
+    const maj=[6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+    const min=[6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+    const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    let cMean=0; for(let i=0;i<12;i++) cMean+=chroma[i]; cMean/=12;
+    function corr(prof,tonic){ let pMean=0; for(let i=0;i<12;i++) pMean+=prof[i]; pMean/=12;
+      let a=0,b=0,c=0; for(let j=0;j<12;j++){ const x=chroma[(j+tonic)%12]-cMean, y=prof[j]-pMean; a+=x*y; b+=x*x; c+=y*y; }
+      return a/(Math.sqrt(b*c)||1); }
+    let best={s:-2,n:'?'};
+    for(let t=0;t<12;t++){ const sM=corr(maj,t); if(sM>best.s)best={s:sM,n:names[t]};
+      const sm=corr(min,t); if(sm>best.s)best={s:sm,n:names[t]+'m'}; }
+    return best.n; }
 
   /* ===== PADS (per-canzone) ===== */
   let padMap=JSON.parse(localStorage.getItem('umdb_padmap')||'{}'); let pads=Array(16).fill(null); let clearMode=false;
@@ -570,6 +636,12 @@
   $('#clearall').addEventListener('click',()=>{ pads=Array(16).fill(null); selPad=-1; savePads(); renderPads(); drawWave(); updateNudgeInfo(); setMsg('RESET'); });
   $('#editpad').addEventListener('click',toggleEdit);
   document.querySelectorAll('.nbtn').forEach(b=>b.addEventListener('click',()=>nudge(+b.dataset.n)));
+  // ---- LOOP IN/OUT ----
+  $('#loopIn').addEventListener('click',()=>{ if(!buffer)return; loopIn=curTime(); if(loopOut!=null&&loopOut<=loopIn)loopOut=null; drawWave(); setMsg('IN '+fmt(loopIn)); });
+  $('#loopOut').addEventListener('click',()=>{ if(!buffer)return; const t=curTime(); if(loopIn==null){ setMsg('prima segna IN'); return; } if(t<=loopIn){ setMsg('OUT dev\'essere dopo IN'); return; } loopOut=t; drawWave(); setMsg('OUT '+fmt(loopOut)); });
+  $('#loopTog').addEventListener('click',e=>{ if(loopIn==null||loopOut==null){ setMsg('segna IN e OUT'); return; }
+    const pos=curTime(); loopOn=!loopOn; e.currentTarget.classList.toggle('on',loopOn);
+    if(loopOn){ startAt(loopIn); setMsg('LOOP ON'); } else { startAt(pos); setMsg('LOOP OFF'); } });
   document.querySelectorAll('.jbtn').forEach(b=>b.addEventListener('click',()=>{ if(!buffer)return; const d=+b.dataset.d; const t=Math.max(0,Math.min(curDur,curTime()+d)); startAt(t); setMsg((d>0?'►+':'◄')+Math.abs(d)+'s  '+fmt(t)); }));
   window.addEventListener('keydown',e=>{ if(e.target.closest('a'))return; const i=KEYS.indexOf(e.key.toLowerCase()); if(i>=0){ e.preventDefault(); hitPad(i); } if(e.key===' '){ e.preventDefault(); togglePlay(); } });
 
