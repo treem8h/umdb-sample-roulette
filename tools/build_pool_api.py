@@ -36,12 +36,25 @@ def iso_to_sec(s):
     h,mi,se=(int(x) if x else 0 for x in m.groups()); return h*3600+mi*60+se
 
 pool={}; calls=0
-# MERGE: parti dal pool esistente (cresce nel tempo invece di ripartire da zero)
+# MERGE + RIVALIDA gli esistenti (rimuove famosi/rotti). videos.list = 1 unità/50 → economico.
 if os.path.exists(OUT):
     try:
-        for v in json.load(open(OUT)):
-            if v.get('id'): pool[v['id']]=v
-        print(f"  pool esistente: {len(pool)} video (aggiungo i nuovi)")
+        existing=json.load(open(OUT)); tmap={v['id']:v.get('t','') for v in existing if v.get('id')}
+        ids=[v['id'] for v in existing if v.get('id')]
+        for i in range(0,len(ids),50):
+            try:
+                vr=yt.videos().list(part='contentDetails,status,statistics',id=','.join(ids[i:i+50])).execute(); calls+=1
+                for it in vr.get('items',[]):
+                    vid=it['id']; d=iso_to_sec(it['contentDetails']['duration'])
+                    views=int(it.get('statistics',{}).get('viewCount',0) or 0)
+                    if d<45 or d>600: continue
+                    if not it.get('status',{}).get('embeddable',True): continue
+                    if views>100000: continue
+                    t=tmap.get(vid,'')
+                    if BAD.search(t): continue
+                    pool[vid]={"id":vid,"d":d,"t":t[:80],"v":views}
+            except Exception as e: print(f"  reval err: {str(e)[:50]}")
+        print(f"  esistenti rivalidati: {len(pool)}/{len(ids)} tenuti (famosi/rotti rimossi)")
     except: pass
 for qi,q in enumerate(QUERIES):
     order=ORDERS[qi%len(ORDERS)]
@@ -66,7 +79,7 @@ for qi,q in enumerate(QUERIES):
                     views=int(it.get('statistics',{}).get('viewCount',0) or 0)
                     if d<45 or d>600: continue
                     if not st.get('embeddable',True): continue
-                    if views>300000: continue          # niente hit famose → roba da digger (poche views)
+                    if views>100000: continue          # digger: solo roba underground (< 100k views)
                     t=titles.get(vid,'')
                     if BAD.search(t): continue
                     if vid in pool: continue
