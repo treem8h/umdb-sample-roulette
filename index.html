@@ -37,6 +37,14 @@
     padding:clamp(12px,3vh,70px) clamp(10px,3vw,44px); position:relative; overflow-x:hidden;
   }
 
+  /* banda arancione in alto disegnata dall'app — SOLO da PWA installata (sotto = fullscreen dal manifest) */
+  .topband{display:none}
+  @media (display-mode: standalone), (display-mode: fullscreen){
+    .topband{display:block; position:fixed; top:0; left:0; right:0; z-index:60; pointer-events:none;
+      height:calc(env(safe-area-inset-top, 0px) + 22px); background:linear-gradient(180deg,var(--accent),var(--accent-lo))}
+    body{ padding-top:calc(env(safe-area-inset-top, 0px) + 32px) }
+  }
+
   /* ===== LOADER minimal ===== */
   #boot{position:fixed; inset:0; z-index:50; background:var(--shell);
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
@@ -293,6 +301,7 @@
 </style>
 </head>
 <body>
+  <div class="topband" aria-hidden="true"></div>
   <!-- LOADER minimal -->
   <div id="boot">
     <img src="assets/logo.svg" alt="Un Miliardo di Beats">
@@ -405,14 +414,14 @@
         <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-2.6a15 15 0 0 0-1.2-3.3A8 8 0 0 1 18.9 8zM12 4c.7 1 1.3 2.3 1.6 4h-3.2C10.7 6.3 11.3 5 12 4zM4.3 14a8 8 0 0 1 0-4h3a17 17 0 0 0 0 4zm.8 2h2.6a15 15 0 0 0 1.2 3.3A8 8 0 0 1 5.1 16zM7.7 8H5.1a8 8 0 0 1 3.8-3.3A15 15 0 0 0 7.7 8zM12 20c-.7-1-1.3-2.3-1.6-4h3.2c-.3 1.7-.9 3-1.6 4zm2-6h-4a15 15 0 0 1 0-4h4a15 15 0 0 1 0 4zm.9 5.3a15 15 0 0 0 1.2-3.3h2.6a8 8 0 0 1-3.8 3.3zM16.7 14a17 17 0 0 0 0-4h3a8 8 0 0 1 0 4z"/></svg></a>
     </div>
 
-    <p class="disclaimer">I sample provengono da video pubblici su YouTube. UMDB non concede alcun diritto sul loro uso: sei tu il responsabile di verificarne la disponibilità legale prima di pubblicare qualsiasi cosa.</p>
+    <p class="disclaimer">Samples stream from public YouTube videos. UMDB grants no right to use them — clearing any sample before you release anything is your own responsibility.</p>
   </div>
 
 <script>
   // loader: sparisce dopo un attimo
   window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1600); });
   // registra il service worker (PWA installabile)
-  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=5').catch(()=>{})); }
+  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=6').catch(()=>{})); }
 
   const AUDIO='/a/';                    // stesso dominio: sampler.francescopavani.it/a/<id>
   const $=s=>document.querySelector(s);
@@ -454,7 +463,7 @@
   // cambio velocità: se sta suonando ribaso offset/startedAt col rate VECCHIO → nessun salto
   function setRate(r){ r=Math.max(RMIN,Math.min(RMAX,r)); if(playing){ offset=curTime(); startedAt=ac.currentTime; } rate=r; if(srcNode) srcNode.playbackRate.value=rate; }
 
-  async function loadAudio(id){ ensureAC(); const tok=++loadTok; stopSrc(); playing=false; buffer=null; peaks=null; curDur=0; offset=0; zoom=1; viewStart=0; selPad=-1;
+  async function loadAudio(id){ ensureAC(); const tok=++loadTok; stopSrc(); playing=false; buffer=null; peaks=null; curDur=0; offset=0; zoom=1; viewStart=0; selPad=-1; lastPad=-1;
     setPlay(); showFlag(false); loadingActive=true; setMsg('EXTRACTING…'); updateClock(); updateZoomBadge(); if(zoomKnob)zoomKnob.set(1); updateNudgeInfo();
     $('#thumb').href='https://youtu.be/'+id;
     $('#thumbImg').src='https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
@@ -515,7 +524,7 @@
 
   /* ===== PADS (per-canzone) ===== */
   let padMap=JSON.parse(localStorage.getItem('umdb_padmap')||'{}'); let pads=Array(16).fill(null); let clearMode=false;
-  let editMode=false, selPad=-1, panning=false;   // EDIT PAD: seleziona un pad e lo sposti al centesimo
+  let editMode=false, selPad=-1, panning=false, lastPad=-1;   // EDIT PAD: seleziona un pad e lo sposti al centesimo
   function loadPadsFor(id){ pads=padMap[id]?padMap[id].slice():Array(16).fill(null); renderPads(); if(peaks)drawWave(); }
   function savePads(){ if(!curTrack)return; padMap[curTrack.id]=pads; const ks=Object.keys(padMap); while(ks.length>120){ delete padMap[ks.shift()]; } localStorage.setItem('umdb_padmap',JSON.stringify(padMap)); }
   const grid=$('#pads');
@@ -524,18 +533,24 @@
   function renderPads(){ [...grid.children].forEach((el,i)=>{ el.classList.toggle('set',pads[i]!=null); el.classList.toggle('clearmode',clearMode); el.classList.toggle('sel',i===selPad); el.querySelector('.t').textContent=pads[i]!=null?fmt(pads[i]):'—'; }); }
   function flash(i){ const el=grid.children[i]; el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'),240); }
   function hitPad(i){ const lab='PAD '+String(i+1).padStart(2,'0');
-    if(editMode){ if(pads[i]==null){ setMsg(lab+' vuoto'); return; } selPad=i; renderPads(); zoomToSel(); updateNudgeInfo(); setMsg(lab+' selezionato'); return; }
-    if(clearMode){ pads[i]=null; savePads(); renderPads(); drawWave(); setMsg(lab+' CLEAR'); return; }
+    if(editMode){ if(pads[i]==null){ setMsg(lab+' vuoto'); return; }
+      if(i===selPad){ flash(i); startAt(pads[i]); setMsg(lab+' ►'+fmt(pads[i])); }      // ripremi il selezionato = ascolta
+      else { selPad=i; lastPad=i; renderPads(); zoomToSel(); updateNudgeInfo(); setMsg(lab+' sel'); }
+      return; }
+    if(clearMode){ pads[i]=null; if(selPad===i)selPad=-1; savePads(); renderPads(); drawWave(); setMsg(lab+' CLEAR'); return; }
     if(!buffer){ setMsg('PRESS RANDOM'); return; }
-    if(pads[i]==null){ pads[i]=curTime(); savePads(); renderPads(); drawWave(); setMsg(lab+' SET '+fmt(pads[i])); }
-    else { flash(i); setMsg(lab+' ►'+fmt(pads[i])); startAt(pads[i]); } }
+    if(pads[i]==null){ pads[i]=curTime(); lastPad=i; savePads(); renderPads(); drawWave(); setMsg(lab+' SET '+fmt(pads[i])); }
+    else { lastPad=i; flash(i); setMsg(lab+' ►'+fmt(pads[i])); startAt(pads[i]); } }
   // ---- EDIT PAD: modalità + nudge fine (centesimi) ----
   function updateNudgeInfo(){ const el=$('#nudgeinfo'); if(!el)return;
     el.textContent=(selPad>=0 && pads[selPad]!=null)? 'PAD '+String(selPad+1).padStart(2,'0')+'  ·  '+pads[selPad].toFixed(2)+'s' : (editMode?'tocca un pad acceso':'—'); }
   function toggleEdit(){ editMode=!editMode; $('#editpad').classList.toggle('on',editMode); $('#nudgebar').classList.toggle('on',editMode);
-    if(editMode){ if(clearMode){ clearMode=false; $('#shift').classList.remove('on'); } setMsg('EDIT PAD — scegli'); }
-    else { selPad=-1; setMsg('READY'); }
-    renderPads(); if(peaks)drawWave(); updateNudgeInfo(); }
+    if(editMode){ if(clearMode){ clearMode=false; $('#shift').classList.remove('on'); }
+      // auto-seleziona: ultimo pad premuto, senò il primo pad settato
+      selPad=(lastPad>=0 && pads[lastPad]!=null)? lastPad : pads.findIndex(v=>v!=null);
+      renderPads(); if(selPad>=0){ zoomToSel(); setMsg('EDIT PAD '+String(selPad+1).padStart(2,'0')); } else { if(peaks)drawWave(); setMsg('EDIT — nessun pad'); }
+      updateNudgeInfo(); return; }
+    selPad=-1; setMsg('READY'); renderPads(); if(peaks)drawWave(); updateNudgeInfo(); }
   function nudge(d){ if(selPad<0||pads[selPad]==null){ setMsg('scegli un pad'); return; }
     pads[selPad]=Math.max(0,Math.min(curDur,+(pads[selPad]+d).toFixed(3))); savePads(); renderPads(); drawWave(); updateNudgeInfo();
     setMsg('PAD '+String(selPad+1).padStart(2,'0')+' → '+pads[selPad].toFixed(2)+'s'); }
