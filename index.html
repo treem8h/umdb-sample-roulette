@@ -124,10 +124,12 @@
   .sc-wave{flex:1 1 auto; position:relative; cursor:crosshair; min-width:0; touch-action:none}
   #wave{width:100%; height:100%; display:block; touch-action:none}
   /* freccina: riduce la thumb e allarga la waveform */
-  .wave-collapse{position:absolute; left:2px; top:50%; transform:translateY(-50%); z-index:4; width:15px; height:38px; border:0; cursor:pointer;
-    background:rgba(0,0,0,.4); color:var(--lcd); border-radius:4px; font-size:.8rem; line-height:1; display:grid; place-items:center; padding:0; opacity:.55; transition:opacity .15s, background .15s}
-  .wave-collapse:hover{opacity:1; background:rgba(0,0,0,.7)}
-  .zoombadge{position:absolute; right:4px; top:4px; z-index:4; font-family:"Courier New",monospace; font-size:.58rem; letter-spacing:.05em;
+  .wave-collapse{position:absolute; left:3px; top:50%; transform:translateY(-50%); z-index:4; width:21px; height:48px; cursor:pointer;
+    border:1px solid rgba(157,255,126,.55); background:rgba(10,26,13,.74); color:var(--lcd); border-radius:5px; font-size:1.05rem; line-height:1;
+    display:grid; place-items:center; padding:0; opacity:.92; text-shadow:0 0 6px var(--lcd-glow);
+    box-shadow:0 0 8px rgba(0,0,0,.5), inset 0 0 5px rgba(157,255,126,.22); transition:opacity .15s, background .15s}
+  .wave-collapse:hover{opacity:1; background:rgba(10,26,13,.95)}
+  .zoombadge{position:absolute; right:4px; bottom:4px; z-index:4; font-family:"Courier New",monospace; font-size:.58rem; letter-spacing:.05em;
     color:#0c1a0d; background:#9dff7e; padding:1px 5px; border-radius:3px; opacity:0; transition:opacity .15s; pointer-events:none}
   .zoombadge.show{opacity:.92}
   .sc-player.collapsed .sc-thumb{display:none}
@@ -208,6 +210,42 @@
   .pad.hit{background:linear-gradient(180deg,#fff2d6,#ffd889); box-shadow:0 0 22px rgba(255,200,90,.95)}
   .pad.hit::after{background:#fff; box-shadow:0 0 9px #fff}
   .pad.clearmode.set{outline:2px dashed var(--accent); outline-offset:-3px}
+  .pad.sel{outline:3px solid var(--accent); outline-offset:-3px;
+    box-shadow:0 4px 0 #8f8d83, 0 0 16px rgba(255,90,31,.6), inset 0 1px 0 rgba(255,255,255,.85)}
+
+  /* ===== KNOB console (sotto lo schermo) ===== */
+  .knobs{display:flex; justify-content:space-around; gap:10px; margin-top:12px; padding:10px 8px; border-radius:11px;
+    background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border:1px solid var(--groove);
+    box-shadow:0 2px 5px rgba(0,0,0,.4) inset, 0 1px 0 rgba(255,255,255,.12)}
+  .knob{display:flex; flex-direction:column; align-items:center; gap:5px; flex:1}
+  .knob .dial{position:relative; width:48px; height:48px; border-radius:50%; cursor:ns-resize; touch-action:none;
+    background:radial-gradient(circle at 50% 34%, #55554f, #2a2a27 62%, #1a1a18);
+    border:1px solid #0d0d0c; box-shadow:0 3px 5px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.18), inset 0 -3px 6px rgba(0,0,0,.5)}
+  .knob .dial::after{content:""; position:absolute; left:50%; top:5px; width:3px; height:16px; margin-left:-1.5px; border-radius:2px;
+    background:var(--lcd); box-shadow:0 0 6px var(--lcd-glow); transform-origin:50% 19px; transform:rotate(var(--a,-135deg))}
+  .knob .kl{font-size:.55rem; letter-spacing:.14em; text-transform:uppercase; color:var(--txt-dim); font-weight:800}
+  .knob .kv{font-family:"Courier New",monospace; font-size:.62rem; color:var(--lcd); background:var(--lcd-bg); padding:1px 6px; border-radius:3px;
+    min-width:48px; text-align:center; box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
+
+  /* ===== EDIT PAD + nudge fine ===== */
+  .key.editpad{width:100%; margin-top:8px; color:#4a2f08; background:linear-gradient(180deg,#ffce78,#e0a63a); border-color:#b47a1c;
+    box-shadow:0 4px 0 #9c6a17, 0 5px 8px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.5) inset}
+  .key.editpad::before{background:#7a5216; box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
+  .key.editpad.on::before{background:#67e05a; box-shadow:0 0 9px var(--led-grn)}
+  .nudgebar{display:none; margin-top:8px; padding:9px 8px; border-radius:10px;
+    background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border:1px solid var(--groove); box-shadow:0 2px 5px rgba(0,0,0,.4) inset}
+  .nudgebar.on{display:block}
+  .nudgeinfo{display:block; text-align:center; font-family:"Courier New",monospace; font-size:.74rem; color:var(--lcd);
+    text-shadow:0 0 6px var(--lcd-glow); margin-bottom:8px; letter-spacing:.04em}
+  .nudgebtns{display:grid; grid-template-columns:repeat(4,1fr); gap:6px}
+  .nbtn{appearance:none; border:0; cursor:pointer; font-family:"Courier New",monospace; font-weight:700; font-size:.72rem; color:var(--key-txt);
+    background:linear-gradient(180deg,var(--key),var(--key-lo)); border-radius:6px; padding:9px 2px; letter-spacing:-.02em;
+    box-shadow:0 3px 0 var(--key-edge), 0 4px 5px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.85); transition:transform .04s, box-shadow .04s}
+  .nbtn:active{transform:translateY(3px); box-shadow:0 0 0 var(--key-edge), inset 0 2px 3px rgba(0,0,0,.3)}
+
+  /* ===== disclaimer legale ===== */
+  .disclaimer{margin:11px 4px 0; font-family:"PANEL",sans-serif; font-weight:500; font-size:.6rem; line-height:1.45;
+    color:var(--txt-dim); text-align:center; letter-spacing:.02em; opacity:.85}
 
   /* tips */
   .tips{margin-top:12px; display:flex; flex-direction:column; gap:7px}
@@ -289,6 +327,12 @@
       </div>
     </div>
 
+    <!-- KNOB console: SPEED (pitch+tempo insieme) · ZOOM (waveform) -->
+    <div class="knobs">
+      <div class="knob" id="knobSpeed"><div class="dial" title="Pitch + tempo (varispeed) — doppio clic = 1.00×"></div><span class="kl">Speed</span><span class="kv">×1.00</span></div>
+      <div class="knob" id="knobZoom"><div class="dial" title="Zoom waveform — doppio clic = 1×"></div><span class="kl">Zoom</span><span class="kv">1.0×</span></div>
+    </div>
+
     <div class="group nav">
       <div class="jog">
         <button class="jbtn back" data-d="-10"><small>►</small>10</button>
@@ -319,6 +363,18 @@
       </div>
     </div>
 
+    <!-- EDIT PAD: attivi → scegli un pad → lo sposti al centesimo con i tasti fini -->
+    <button class="key editpad" id="editpad">Edit pad</button>
+    <div class="nudgebar" id="nudgebar">
+      <span class="nudgeinfo" id="nudgeinfo">tocca un pad acceso</span>
+      <div class="nudgebtns">
+        <button class="nbtn" data-n="-0.1">−0.1</button>
+        <button class="nbtn" data-n="-0.01">−.01</button>
+        <button class="nbtn" data-n="0.01">+.01</button>
+        <button class="nbtn" data-n="0.1">+0.1</button>
+      </div>
+    </div>
+
     <div class="padplate"><div class="pads" id="pads"></div></div>
 
     <div class="tips">
@@ -337,13 +393,15 @@
       <a href="https://unmiliardodibeats.it" target="_blank" rel="noopener" title="Website">
         <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-2.6a15 15 0 0 0-1.2-3.3A8 8 0 0 1 18.9 8zM12 4c.7 1 1.3 2.3 1.6 4h-3.2C10.7 6.3 11.3 5 12 4zM4.3 14a8 8 0 0 1 0-4h3a17 17 0 0 0 0 4zm.8 2h2.6a15 15 0 0 0 1.2 3.3A8 8 0 0 1 5.1 16zM7.7 8H5.1a8 8 0 0 1 3.8-3.3A15 15 0 0 0 7.7 8zM12 20c-.7-1-1.3-2.3-1.6-4h3.2c-.3 1.7-.9 3-1.6 4zm2-6h-4a15 15 0 0 1 0-4h4a15 15 0 0 1 0 4zm.9 5.3a15 15 0 0 0 1.2-3.3h2.6a8 8 0 0 1-3.8 3.3zM16.7 14a17 17 0 0 0 0-4h3a8 8 0 0 1 0 4z"/></svg></a>
     </div>
+
+    <p class="disclaimer">I sample provengono da video pubblici su YouTube. UMDB non concede alcun diritto sul loro uso: sei tu il responsabile di verificarne la disponibilità legale prima di pubblicare qualsiasi cosa.</p>
   </div>
 
 <script>
   // loader: sparisce dopo un attimo
   window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1600); });
   // registra il service worker (PWA installabile)
-  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=3').catch(()=>{})); }
+  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=4').catch(()=>{})); }
 
   const AUDIO='/a/';                    // stesso dominio: sampler.francescopavani.it/a/<id>
   const $=s=>document.querySelector(s);
@@ -366,24 +424,27 @@
 
   /* ===== MOTORE AUDIO (Web Audio) — cue ISTANTANEO ===== */
   let ac=null, gain=null, buffer=null, srcNode=null, srcGen=0, startedAt=0, offset=0, playing=false, curDur=0, loadTok=0, loadingActive=false, loadPhase=0;
+  let rate=1; const RMIN=0.5, RMAX=1.5;   // varispeed: pitch+tempo insieme (come un giradischi/MPC)
   function ensureAC(){ if(!ac){ ac=new (window.AudioContext||window.webkitAudioContext)(); gain=ac.createGain(); gain.connect(ac.destination); }
     if(ac.state==='suspended') ac.resume(); return ac; }
-  // FIX BUG "manda in fondo": azzero onended PRIMA di stop → l'evented ritardato non sovrascrive più lo stato
+  // FIX BUG "manda in fondo": azzero onended PRIMA di stop → l'evento ritardato non sovrascrive più lo stato
   function stopSrc(){ if(srcNode){ try{srcNode.onended=null;}catch(e){} try{srcNode.stop();}catch(e){} try{srcNode.disconnect();}catch(e){} srcNode=null; } }
-  function curTime(){ return playing? Math.min(curDur, offset+(ac.currentTime-startedAt)) : offset; }
+  function curTime(){ return playing? Math.min(curDur, offset+rate*(ac.currentTime-startedAt)) : offset; }
   function setPlay(){ $('#playpause').textContent=playing?'Pause':'Play'; }
   function startAt(t){ ensureAC(); if(!buffer)return; stopSrc();
     offset=Math.max(0,Math.min(curDur,t||0));
-    const node=ac.createBufferSource(); node.buffer=buffer; node.connect(gain);
+    const node=ac.createBufferSource(); node.buffer=buffer; node.playbackRate.value=rate; node.connect(gain);
     const gen=++srcGen; node.start(0,offset); srcNode=node; startedAt=ac.currentTime; playing=true;
     // solo l'ULTIMO nodo (gen corrente) può segnare "finito" → niente più salti in fondo fantasma
     node.onended=()=>{ if(gen===srcGen){ playing=false; offset=curDur; setPlay(); paint(); } };
     setPlay(); followView(true); paint(); }
   function pauseA(){ if(!playing)return; offset=curTime(); stopSrc(); playing=false; setPlay(); paint(); }
   function togglePlay(){ if(!buffer)return; playing? pauseA() : startAt(offset>=curDur-0.05?0:offset); }
+  // cambio velocità: se sta suonando ribaso offset/startedAt col rate VECCHIO → nessun salto
+  function setRate(r){ r=Math.max(RMIN,Math.min(RMAX,r)); if(playing){ offset=curTime(); startedAt=ac.currentTime; } rate=r; if(srcNode) srcNode.playbackRate.value=rate; }
 
-  async function loadAudio(id){ ensureAC(); const tok=++loadTok; stopSrc(); playing=false; buffer=null; peaks=null; curDur=0; offset=0; zoom=1; viewStart=0;
-    setPlay(); showFlag(false); loadingActive=true; setMsg('EXTRACTING…'); updateClock(); updateZoomBadge();
+  async function loadAudio(id){ ensureAC(); const tok=++loadTok; stopSrc(); playing=false; buffer=null; peaks=null; curDur=0; offset=0; zoom=1; viewStart=0; selPad=-1;
+    setPlay(); showFlag(false); loadingActive=true; setMsg('EXTRACTING…'); updateClock(); updateZoomBadge(); if(zoomKnob)zoomKnob.set(1); updateNudgeInfo();
     $('#thumb').href='https://youtu.be/'+id;
     $('#thumbImg').src='https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
     try{
@@ -397,7 +458,7 @@
 
   /* ===== WAVEFORM + ZOOM ===== */
   const HIRES=2000; let peaks=null;               // picchi ad alta risoluzione → zoom nitido
-  let zoom=1, viewStart=0; const MAXZOOM=48;
+  let zoom=1, viewStart=0; const MAXZOOM=48; let speedKnob=null, zoomKnob=null;
   const wave=$('#wave'), wc=wave.getContext('2d'), scwave=$('#scwave');
   function sizeWave(){ const dpr=Math.min(2,window.devicePixelRatio||1); const w=Math.max(40,wave.clientWidth), h=Math.max(40,wave.clientHeight);
     wave.width=Math.round(w*dpr); wave.height=Math.round(h*dpr); wc.setTransform(dpr,0,0,dpr,0,0); }
@@ -417,8 +478,8 @@
       const h=Math.max(2,m*(H-6)), x=i*cw; wc.fillStyle=(t1<=prog)?'#9dff7e':'#2c5628'; wc.fillRect(x,mid-h/2,Math.max(1,cw-1),h); }
     // MARCATORI PAD numerati (solo quelli dentro la finestra visibile)
     wc.textAlign='center'; wc.textBaseline='bottom';
-    pads.forEach((t,idx)=>{ if(t==null||t<a||t>b) return; const x=(t-a)/span*W;
-      wc.fillStyle='#ffb020'; wc.fillRect(x-0.7,0,1.4,H);
+    pads.forEach((t,idx)=>{ if(t==null||t<a||t>b) return; const x=(t-a)/span*W; const sel=(idx===selPad);
+      wc.fillStyle=sel?'#ff7a3f':'#ffb020'; wc.fillRect(x-(sel?1.1:0.7),0,sel?2.2:1.4,H);
       wc.beginPath(); wc.moveTo(x-4,0); wc.lineTo(x+4,0); wc.lineTo(x,5); wc.closePath(); wc.fill();
       wc.font='700 9px "Courier New",monospace'; wc.fillText(String(idx+1),x,H); });
     // playhead
@@ -429,27 +490,44 @@
   function updateClock(){ clock.textContent=fmt(curTime())+' / '+fmt(curDur); }
   function updateZoomBadge(){ const z=$('#zoombadge'); if(!z)return; const zz=Math.round(zoom*10)/10; z.textContent=(zoom<1.05?'1×':zz+'×'); z.classList.toggle('show',zoom>1.05); }
   function paint(){ drawWave(); updateClock(); }
-  function tick(){ if(loadingActive){ loadPhase=(loadPhase+0.02)%1; drawLoading(); } else if(playing){ followView(false); drawWave(); updateClock(); } requestAnimationFrame(tick); }
+  function tick(){ if(loadingActive){ loadPhase=(loadPhase+0.02)%1; drawLoading(); } else if(playing){ if(!panning)followView(false); drawWave(); updateClock(); } requestAnimationFrame(tick); }
 
   /* zoom helpers */
   function timeAtX(clientX){ const r=wave.getBoundingClientRect(); const f=Math.max(0,Math.min(1,(clientX-r.left)/r.width)); return viewStart+f*winSpan(); }
   function setZoomAt(z, clientX){ if(!curDur)return; const r=wave.getBoundingClientRect(); const f=Math.max(0,Math.min(1,(clientX-r.left)/r.width));
-    const centerT=viewStart+f*winSpan(); zoom=Math.max(1,Math.min(MAXZOOM,z)); viewStart=centerT-f*winSpan(); clampView(); updateZoomBadge(); if(!playing)drawWave(); }
+    const centerT=viewStart+f*winSpan(); zoom=Math.max(1,Math.min(MAXZOOM,z)); viewStart=centerT-f*winSpan(); clampView(); updateZoomBadge(); if(zoomKnob)zoomKnob.set(zoom); if(!playing)drawWave(); }
+  // knob ZOOM: zooma dove serve → pad selezionato (in pausa) oppure playhead (in play)
+  function applyZoomKnob(v){ zoom=Math.max(1,Math.min(MAXZOOM,v)); updateZoomBadge(); if(!curDur)return;
+    const c=(!playing && selPad>=0 && pads[selPad]!=null)? pads[selPad] : curTime(); viewStart=c-winSpan()/2; clampView(); if(!playing)drawWave(); }
+  function zoomToSel(){ if(selPad<0||pads[selPad]==null)return; if(zoom<4){ zoom=8; if(zoomKnob)zoomKnob.set(zoom); } updateZoomBadge();
+    viewStart=pads[selPad]-winSpan()/2; clampView(); drawWave(); }
 
   /* ===== PADS (per-canzone) ===== */
   let padMap=JSON.parse(localStorage.getItem('umdb_padmap')||'{}'); let pads=Array(16).fill(null); let clearMode=false;
+  let editMode=false, selPad=-1, panning=false;   // EDIT PAD: seleziona un pad e lo sposti al centesimo
   function loadPadsFor(id){ pads=padMap[id]?padMap[id].slice():Array(16).fill(null); renderPads(); if(peaks)drawWave(); }
   function savePads(){ if(!curTrack)return; padMap[curTrack.id]=pads; const ks=Object.keys(padMap); while(ks.length>120){ delete padMap[ks.shift()]; } localStorage.setItem('umdb_padmap',JSON.stringify(padMap)); }
   const grid=$('#pads');
   pads.forEach((_,i)=>{ const p=document.createElement('button'); p.className='pad'; p.dataset.i=i;
     p.innerHTML='<span class="lbl">'+String(i+1).padStart(2,'0')+'</span><span class="t"></span>'; p.addEventListener('click',()=>hitPad(i)); grid.appendChild(p); });
-  function renderPads(){ [...grid.children].forEach((el,i)=>{ el.classList.toggle('set',pads[i]!=null); el.classList.toggle('clearmode',clearMode); el.querySelector('.t').textContent=pads[i]!=null?fmt(pads[i]):'—'; }); }
+  function renderPads(){ [...grid.children].forEach((el,i)=>{ el.classList.toggle('set',pads[i]!=null); el.classList.toggle('clearmode',clearMode); el.classList.toggle('sel',i===selPad); el.querySelector('.t').textContent=pads[i]!=null?fmt(pads[i]):'—'; }); }
   function flash(i){ const el=grid.children[i]; el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'),240); }
   function hitPad(i){ const lab='PAD '+String(i+1).padStart(2,'0');
+    if(editMode){ if(pads[i]==null){ setMsg(lab+' vuoto'); return; } selPad=i; renderPads(); zoomToSel(); updateNudgeInfo(); setMsg(lab+' selezionato'); return; }
     if(clearMode){ pads[i]=null; savePads(); renderPads(); drawWave(); setMsg(lab+' CLEAR'); return; }
     if(!buffer){ setMsg('PRESS RANDOM'); return; }
     if(pads[i]==null){ pads[i]=curTime(); savePads(); renderPads(); drawWave(); setMsg(lab+' SET '+fmt(pads[i])); }
     else { flash(i); setMsg(lab+' ►'+fmt(pads[i])); startAt(pads[i]); } }
+  // ---- EDIT PAD: modalità + nudge fine (centesimi) ----
+  function updateNudgeInfo(){ const el=$('#nudgeinfo'); if(!el)return;
+    el.textContent=(selPad>=0 && pads[selPad]!=null)? 'PAD '+String(selPad+1).padStart(2,'0')+'  ·  '+pads[selPad].toFixed(2)+'s' : (editMode?'tocca un pad acceso':'—'); }
+  function toggleEdit(){ editMode=!editMode; $('#editpad').classList.toggle('on',editMode); $('#nudgebar').classList.toggle('on',editMode);
+    if(editMode){ if(clearMode){ clearMode=false; $('#shift').classList.remove('on'); } setMsg('EDIT PAD — scegli'); }
+    else { selPad=-1; setMsg('READY'); }
+    renderPads(); if(peaks)drawWave(); updateNudgeInfo(); }
+  function nudge(d){ if(selPad<0||pads[selPad]==null){ setMsg('scegli un pad'); return; }
+    pads[selPad]=Math.max(0,Math.min(curDur,+(pads[selPad]+d).toFixed(3))); savePads(); renderPads(); drawWave(); updateNudgeInfo();
+    setMsg('PAD '+String(selPad+1).padStart(2,'0')+' → '+pads[selPad].toFixed(2)+'s'); }
 
   /* ===== ROULETTE ===== */
   function rollRandom(){ if(!POOL.length){ setMsg('LOADING POOL…'); return; } ensureAC();
@@ -462,7 +540,9 @@
   $('#playpause').addEventListener('click',togglePlay);
   $('#restart').addEventListener('click',()=>{ if(!buffer)return; startAt(0); setMsg('◄ START'); });
   $('#shift').addEventListener('click',e=>{ clearMode=!clearMode; e.currentTarget.classList.toggle('on',clearMode); renderPads(); setMsg(clearMode?'CLEAR MODE':'READY'); });
-  $('#clearall').addEventListener('click',()=>{ pads=Array(16).fill(null); savePads(); renderPads(); drawWave(); setMsg('RESET'); });
+  $('#clearall').addEventListener('click',()=>{ pads=Array(16).fill(null); selPad=-1; savePads(); renderPads(); drawWave(); updateNudgeInfo(); setMsg('RESET'); });
+  $('#editpad').addEventListener('click',toggleEdit);
+  document.querySelectorAll('.nbtn').forEach(b=>b.addEventListener('click',()=>nudge(+b.dataset.n)));
   document.querySelectorAll('.jbtn').forEach(b=>b.addEventListener('click',()=>{ if(!buffer)return; const d=+b.dataset.d; const t=Math.max(0,Math.min(curDur,curTime()+d)); startAt(t); setMsg((d>0?'►+':'◄')+Math.abs(d)+'s  '+fmt(t)); }));
   window.addEventListener('keydown',e=>{ if(e.target.closest('a'))return; const i=KEYS.indexOf(e.key.toLowerCase()); if(i>=0){ e.preventDefault(); hitPad(i); } if(e.key===' '){ e.preventDefault(); togglePlay(); } });
 
@@ -474,11 +554,11 @@
   scwave.addEventListener('pointermove',e=>{ if(!ptrs.has(e.pointerId))return; ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(ptrs.size>=2){ const p=[...ptrs.values()]; const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y); if(pinchDist>0){ setZoomAt(pinchZoom*(d/pinchDist),(p[0].x+p[1].x)/2); } dragged=true; return; }
     const dx=e.clientX-dragStartX; if(Math.abs(dx)>4)dragged=true;
-    if(zoom>1&&dragged){ const r=wave.getBoundingClientRect(); viewStart=dragStartView-(dx/r.width)*winSpan(); clampView(); if(!playing)drawWave(); } });
+    if(zoom>1&&dragged){ panning=true; const r=wave.getBoundingClientRect(); viewStart=dragStartView-(dx/r.width)*winSpan(); clampView(); if(!playing)drawWave(); } });
   function endPtr(e){ if(!ptrs.has(e.pointerId))return; const wasSingle=ptrs.size===1; ptrs.delete(e.pointerId); try{scwave.releasePointerCapture(e.pointerId);}catch(_){}
-    if(ptrs.size<2)pinchDist=0;
+    if(ptrs.size<2)pinchDist=0; if(ptrs.size===0)panning=false;
     if(wasSingle&&!dragged&&buffer){ const now=e.timeStamp;
-      if(now-lastTap<300){ zoom=1; viewStart=0; updateZoomBadge(); drawWave(); setMsg('ZOOM 1×'); lastTap=0; }   // doppio tap = reset
+      if(now-lastTap<300){ zoom=1; viewStart=0; updateZoomBadge(); if(zoomKnob)zoomKnob.set(1); drawWave(); setMsg('ZOOM 1×'); lastTap=0; }   // doppio tap = reset
       else { lastTap=now; const t=timeAtX(e.clientX); startAt(t); setMsg('► '+fmt(t)); } } }
   scwave.addEventListener('pointerup',endPtr); scwave.addEventListener('pointercancel',endPtr);
   scwave.addEventListener('wheel',e=>{ if(!buffer)return; e.preventDefault(); setZoomAt(zoom*(e.deltaY<0?1.2:1/1.2),e.clientX); },{passive:false});
@@ -511,10 +591,29 @@
     POOL=POOL.filter(v=>v.id!==curTrack.id); stopSrc(); playing=false; setPlay(); setMsg('⚑ REPORTED — skipping'); setTimeout(rollRandom,400); }
   $('#reportBtn').addEventListener('click',reportTrack);
 
+  /* ===== KNOB: drag verticale = valore, doppio clic = default ===== */
+  function makeKnob(rootId, cfg){
+    const root=document.getElementById(rootId); if(!root) return null;
+    const dial=root.querySelector('.dial'), kv=root.querySelector('.kv');
+    let pos=cfg.val2pos(cfg.def);
+    function render(){ dial.style.setProperty('--a',(-135+pos*270).toFixed(1)+'deg'); kv.textContent=cfg.fmt(cfg.pos2val(pos)); }
+    function setPos(p,fire){ pos=Math.max(0,Math.min(1,p)); render(); if(fire)cfg.on(cfg.pos2val(pos)); }
+    let drag=false, sy=0, sp=0;
+    dial.addEventListener('pointerdown',e=>{ e.preventDefault(); drag=true; try{dial.setPointerCapture(e.pointerId);}catch(_){} sy=e.clientY; sp=pos; });
+    dial.addEventListener('pointermove',e=>{ if(!drag)return; setPos(sp+(sy-e.clientY)/160,true); });
+    function up(e){ drag=false; try{dial.releasePointerCapture(e.pointerId);}catch(_){} }
+    dial.addEventListener('pointerup',up); dial.addEventListener('pointercancel',up);
+    dial.addEventListener('dblclick',()=>setPos(cfg.val2pos(cfg.def),true));
+    render();
+    return { set:v=>{ pos=cfg.val2pos(v); render(); }, val:()=>cfg.pos2val(pos) };
+  }
+
   /* ===== init ===== */
   window.addEventListener('resize',()=>{ sizeWave(); if(peaks)drawWave(); });
   window.addEventListener('load',()=>{ sizeWave(); });
-  sizeWave(); renderHistory(); renderPads(); requestAnimationFrame(tick);
+  speedKnob=makeKnob('knobSpeed',{ def:1, pos2val:p=>0.5+p, val2pos:v=>Math.max(0,Math.min(1,v-0.5)), fmt:v=>'×'+v.toFixed(2), on:v=>setRate(v) });
+  zoomKnob =makeKnob('knobZoom', { def:1, pos2val:p=>Math.pow(MAXZOOM,p), val2pos:v=>Math.log(Math.max(1,v))/Math.log(MAXZOOM), fmt:v=>v<1.05?'1.0×':v.toFixed(1)+'×', on:v=>applyZoomKnob(v) });
+  sizeWave(); renderHistory(); renderPads(); updateNudgeInfo(); requestAnimationFrame(tick);
 </script>
 </body>
 </html>
