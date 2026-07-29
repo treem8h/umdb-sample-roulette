@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>UMDB Sample Roulette</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  @font-face{ font-family:"PANEL"; src:url("assets/SairaSemiCondensed-SemiBold.ttf") format("truetype"); font-weight:600; font-display:swap; }
+  @font-face{ font-family:"PANEL"; src:url("assets/SairaSemiCondensed-Medium.ttf") format("truetype"); font-weight:500; font-display:swap; }
+  :root{
+    --shell:#d7d5cf; --shell-lo:#c2c0b9; --shell-hi:#eeece6; --shell-edge:#9a988f;
+    --plate:#2c2c2b; --plate-hi:#3a3a38; --groove:#111;
+    --lcd-bg:#0c1a0d; --lcd:#9dff7e; --lcd-dim:#3f6b3a; --lcd-glow:rgba(130,255,120,.5);
+    --key:#ececE8; --key-lo:#c7c5be; --key-edge:#8f8d84; --key-txt:#2a2a28;
+    --accent:#ff5a1f; --accent-lo:#d8410f; --blue:#2e74b5;
+    --pad:#c9c6bd; --pad-hi:#e0ddd4; --pad-lo:#a7a498; --pad-edge:#7d7b72;
+    --led-off:#3a3a37; --led-grn:#67e05a; --led-amb:#ffb020;
+    --txt:#2a2a28; --txt-dim:#77756c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0; min-height:100%}
+  body{
+    min-height:100vh; display:grid; place-items:center;
+    background:#141311; color:var(--txt); font-weight:600;
+    font-family:"PANEL","Arial Narrow",Arial,sans-serif;
+    padding:clamp(34px,9vh,90px) clamp(10px,3vw,44px); position:relative; overflow-x:hidden;
+  }
+
+  /* ===== LOADER minimal ===== */
+  #boot{position:fixed; inset:0; z-index:50; background:var(--shell);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+    transition:opacity .6s ease .1s;}
+  #boot.off{opacity:0; pointer-events:none}
+  #boot img{width:min(60vw,300px); filter:brightness(0) saturate(0); opacity:0;
+    animation:bootin .7s ease forwards}
+  #boot .line{font-family:"PANEL",sans-serif; color:var(--txt-dim); letter-spacing:.4em;
+    font-size:.72rem; font-weight:600; text-transform:uppercase; opacity:0; animation:bootin .5s ease .4s forwards}
+  @keyframes bootin{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+
+  /* ===== SCRIVANIA reale — sul body, scrolla col sampler (pezzo unico), zoomata ===== */
+  @media (min-width:860px){
+    body{ background:#e9e7e2 url("assets/desk.png?v=15") center center / cover no-repeat; }
+  }
+
+  /* ===== DEVICE ===== */
+  .unit{position:relative; z-index:1; width:100%; max-width:380px;
+    background:linear-gradient(180deg,var(--shell-hi),var(--shell) 40%,var(--shell-lo));
+    border-radius:20px; border:1px solid var(--shell-edge);
+    /* ombra "appoggiata": luce dall'alto → ombra verso il basso, virata a sx + contatto */
+    box-shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 -2px 6px rgba(0,0,0,.15) inset,
+      0 2px 4px rgba(0,0,0,.45), -6px 16px 26px rgba(0,0,0,.4), -14px 40px 70px rgba(0,0,0,.55);
+    padding:clamp(15px,4vw,20px); overflow:hidden;}
+  /* LOGO watermark SOTTO tutto: molto grande e in alto, si intravede */
+  .unit::before{content:""; position:absolute; z-index:0; left:-18%; right:-18%; top:3%; height:150%;
+    background:url("assets/logo.svg") center top / contain no-repeat;
+    filter:brightness(0); opacity:.055; pointer-events:none;}
+  .unit > *{position:relative; z-index:1}
+
+  .title{font-family:"PANEL",sans-serif; text-align:center; margin:0 0 13px;
+    font-size:1.05rem; letter-spacing:.16em; text-transform:uppercase; font-weight:600; color:var(--txt)}
+  .title b{color:var(--accent)}
+
+  .plate{background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border-radius:12px; padding:9px;
+    border:1px solid var(--groove); box-shadow:0 2px 5px rgba(0,0,0,.4) inset, 0 1px 0 rgba(255,255,255,.15)}
+  .screen{position:relative; border-radius:7px; overflow:hidden; background:#000; border:2px solid #000}
+  .video-wrap{position:relative; aspect-ratio:16/9; background:#000}
+  #player,.video-wrap iframe{position:absolute; inset:0; width:100%; height:100%; border:0; pointer-events:none}
+  .novid{position:absolute; inset:0; display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center;
+    color:var(--lcd-dim); font-family:"Courier New",monospace; font-size:.82rem; letter-spacing:.15em; text-align:center; padding:18px; background:var(--lcd-bg)}
+  .novid .big{color:var(--lcd); font-size:1rem; letter-spacing:.25em; text-shadow:0 0 10px var(--lcd-glow)}
+  .scan{position:absolute; inset:0; pointer-events:none; mix-blend-mode:overlay; opacity:.35;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,.4) 0 1px, transparent 1px 3px)}
+  /* timeline scorrevole */
+  .timeline{position:relative; height:6px; background:#081207; cursor:pointer; border-top:1px solid #000}
+  .timeline i{position:absolute; left:0; top:0; height:100%; width:0; background:var(--lcd);
+    box-shadow:0 0 7px var(--lcd-glow)}
+  .timeline i::after{content:""; position:absolute; right:-1px; top:-1px; bottom:-1px; width:2px; background:#dfffce}
+  .lcd{font-family:"Courier New",monospace; color:var(--lcd); background:var(--lcd-bg);
+    border-top:1px solid #000; padding:7px 11px; display:flex; justify-content:space-between; gap:10px;
+    font-size:.8rem; letter-spacing:.06em; text-shadow:0 0 7px var(--lcd-glow); font-variant-numeric:tabular-nums}
+  .lcd .time{color:var(--lcd-dim)}
+
+  /* GRUPPI MPC: colore PIENO stampato piatto sul chassis (no scavo, no bordo) */
+  /* padding-bottom maggiore: compensa l'ombra 3D dei tasti → spazio visivo simmetrico */
+  .group{border-radius:9px; padding:8px 8px 11px; margin-top:12px}
+  .group.nav{background:var(--accent)}
+  .group.clean{background:var(--blue); padding-bottom:12px}
+  .cleanrow{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+
+  /* JOG — tastini fisici avanti/indietro sotto lo schermo */
+  .jog{display:grid; grid-template-columns:repeat(10,1fr); gap:5px; margin:0}
+  .jbtn{position:relative; appearance:none; cursor:pointer; border:0;
+    background:linear-gradient(180deg,var(--key),var(--key-lo)); color:var(--key-txt);
+    font-family:"PANEL",sans-serif; font-weight:600; font-size:.56rem; letter-spacing:-.03em;
+    padding:6px 1px 5px; border-radius:5px; line-height:1;
+    box-shadow:0 3px 0 var(--key-edge), 0 4px 5px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.85);
+    transition:transform .04s, box-shadow .04s;}
+  .jbtn:active{transform:translateY(3px); box-shadow:0 0 0 var(--key-edge), inset 0 2px 3px rgba(0,0,0,.3)}
+  .jbtn:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .jbtn small{display:block; font-size:.82em; opacity:.5; margin-bottom:1px; line-height:1}
+  .jbtn.back small{color:#a8551f; transform:scaleX(-1)}
+  .jbtn.fwd small{color:#1f7a3a}
+
+  .controls{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0 0}
+  /* due tasti (Play/Pause + Ricomincia) nell'ingombro di una cella */
+  .duo{display:flex; gap:8px}
+  .duo .key{flex:1; padding:10px 8px; text-align:center}
+  .duo .key::before{display:none}
+  .duo .key.sq{flex:0 0 44px; font-size:1.15rem; padding:10px 0}
+  .key{position:relative; appearance:none; cursor:pointer; border:0;
+    font-family:inherit; font-weight:800; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--key-txt); padding:10px 12px 10px 30px; border-radius:9px; text-align:left;
+    background:linear-gradient(180deg,var(--key),var(--key-lo)); border:1px solid var(--key-edge);
+    box-shadow:0 4px 0 var(--key-edge), 0 5px 8px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.9) inset;
+    transition:transform .04s ease, box-shadow .04s ease;}
+  .key:active{transform:translateY(4px); box-shadow:0 0 0 var(--key-edge), inset 0 2px 4px rgba(0,0,0,.28)}
+  .key:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .key::before{content:""; position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    width:9px; height:9px; border-radius:50%; background:var(--led-off);
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.6); transition:.1s}
+  .key.accent{color:#fff; background:linear-gradient(180deg,var(--accent),var(--accent-lo));
+    border-color:var(--accent-lo); box-shadow:0 4px 0 #a83109, 0 5px 9px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.35) inset}
+  .key.accent::before{background:#fff3cf; box-shadow:0 0 9px #ffe9a8, 0 0 3px #fff, inset 0 1px 1px rgba(0,0,0,.15)}
+  .key.on::before{background:var(--led-grn); box-shadow:0 0 9px var(--led-grn)}
+  .key.blink::before{animation:blink .1s 3}
+  @keyframes blink{50%{background:var(--led-off); box-shadow:inset 0 1px 2px rgba(0,0,0,.8)}}
+
+  .padplate{--pg:clamp(8px,2.2vw,11px); margin-top:12px; background:linear-gradient(180deg,var(--plate-hi),var(--plate));
+    border-radius:12px; padding:var(--pg) var(--pg) calc(var(--pg) + 4px); border:1px solid var(--groove);
+    box-shadow:0 2px 6px rgba(0,0,0,.45) inset, 0 1px 0 rgba(255,255,255,.15)}
+  .pads{display:grid; grid-template-columns:repeat(4,1fr); gap:var(--pg)}
+  .pad{position:relative; aspect-ratio:1/1; border-radius:9px; cursor:pointer; border:1px solid var(--pad-edge);
+    background:radial-gradient(120% 90% at 50% 8%, rgba(255,255,255,.6), transparent 55%),
+      linear-gradient(180deg,var(--pad-hi),var(--pad) 58%,var(--pad-lo));
+    box-shadow:0 4px 0 #8f8d83, 0 5px 9px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.85), inset 0 -2px 4px rgba(0,0,0,.12);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    transition:transform .03s, box-shadow .03s; user-select:none; color:#5a574d}
+  .pad:active{transform:translateY(4px); box-shadow:0 0 0 #8f8d83, inset 0 2px 6px rgba(0,0,0,.4)}
+  .pad .lbl{font-size:.52rem; font-weight:800; letter-spacing:.1em; opacity:.45}
+  .pad .t{font-family:"Courier New",monospace; font-size:.82rem; font-weight:700; letter-spacing:-.02em}
+  .pad::after{content:""; position:absolute; top:5px; right:5px; width:5px; height:5px; border-radius:50%;
+    background:var(--led-off); box-shadow:inset 0 0 2px rgba(0,0,0,.7); transition:.1s}
+  .pad.set{color:#4a2f08; background:linear-gradient(180deg,#ffce78,#f0a83a 60%,#cf8b22); border-color:#b47a1c;
+    box-shadow:0 4px 0 #9c6a17, 0 0 14px rgba(255,176,32,.4), inset 0 1px 0 rgba(255,255,255,.5)}
+  .pad.set::after{background:var(--led-amb); box-shadow:0 0 7px var(--led-amb)}
+  .pad.hit{background:linear-gradient(180deg,#fff2d6,#ffd889); box-shadow:0 0 22px rgba(255,200,90,.95)}
+  .pad.hit::after{background:#fff; box-shadow:0 0 9px #fff}
+  .pad.clearmode.set{outline:2px dashed var(--accent); outline-offset:-3px}
+
+  /* tips */
+  .tips{margin-top:12px; display:flex; flex-direction:column; gap:7px}
+  .tip{display:flex; align-items:center; gap:9px; font-size:.66rem; color:var(--txt-dim); line-height:1.3}
+  .tip .ico{flex:none; width:19px; height:19px; border-radius:5px; display:grid; place-items:center;
+    background:var(--plate); color:var(--lcd); font-size:.68rem; box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+  .tip b{color:var(--txt)}
+  .keys{display:flex; gap:4px; flex-wrap:wrap; margin-left:auto}
+  .keys kbd{font-family:"Courier New",monospace; font-size:.58rem; background:linear-gradient(180deg,var(--key),var(--key-lo));
+    color:var(--key-txt); border:1px solid var(--key-edge); border-radius:4px; padding:2px 5px; box-shadow:0 1px 0 var(--key-edge)}
+
+  /* SOCIAL footer */
+  .social{display:flex; align-items:center; justify-content:center; gap:14px; margin-top:8px;
+    border-top:1px solid var(--shell-edge); padding-top:12px}
+  .social a{width:34px; height:34px; border-radius:8px; display:grid; place-items:center;
+    color:var(--txt); text-decoration:none; border:1px solid var(--shell-edge);
+    background:linear-gradient(180deg,var(--shell-hi),var(--shell-lo)); box-shadow:0 2px 0 var(--shell-edge), inset 0 1px 0 rgba(255,255,255,.7);
+    transition:transform .08s, color .12s}
+  .social a:hover{color:var(--accent); transform:translateY(-1px)}
+  .social a:active{transform:translateY(1px); box-shadow:none}
+  .social svg{width:17px; height:17px; fill:currentColor}
+
+  @media (pointer:coarse), (max-width:520px){ .tip.kbtip{display:none} }
+  @media (min-width:860px){ .desk{display:block} }
+  @media (prefers-reduced-motion:reduce){#boot img,#boot .bar i{animation:none} #boot .bar i{width:100%}}
+</style>
+</head>
+<body>
+  <!-- LOADER minimal -->
+  <div id="boot">
+    <img src="assets/logo.svg" alt="Un Miliardo di Beats">
+    <div class="line">Sample Roulette</div>
+  </div>
+
+
+  <!-- DEVICE -->
+  <div class="unit">
+    <h1 class="title">UMDB <b>Sample</b> Roulette</h1>
+
+    <div class="plate">
+      <div class="screen">
+        <div class="video-wrap">
+          <div id="player"></div>
+          <div class="novid" id="novid">
+            <span class="big">◉ UMDB ROULETTE</span>
+            <span>hit RANDOM to pull<br>a sample to chop</span>
+          </div>
+          <div class="scan"></div>
+        </div>
+        <div class="timeline" id="timeline"><i id="tlfill"></i></div>
+        <div class="lcd"><span class="msg" id="msg">READY</span><span class="time" id="clock">0:00 / 0:00</span></div>
+      </div>
+    </div>
+
+    <div class="group nav">
+      <div class="jog">
+        <button class="jbtn back" data-d="-10"><small>►</small>10</button>
+        <button class="jbtn back" data-d="-5"><small>►</small>5</button>
+        <button class="jbtn back" data-d="-3"><small>►</small>3</button>
+        <button class="jbtn back" data-d="-1"><small>►</small>1</button>
+        <button class="jbtn back" data-d="-0.5"><small>►</small>.5</button>
+        <button class="jbtn fwd" data-d="0.5"><small>►</small>.5</button>
+        <button class="jbtn fwd" data-d="1"><small>►</small>1</button>
+        <button class="jbtn fwd" data-d="3"><small>►</small>3</button>
+        <button class="jbtn fwd" data-d="5"><small>►</small>5</button>
+        <button class="jbtn fwd" data-d="10"><small>►</small>10</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="key accent" id="random">Random</button>
+      <div class="duo">
+        <button class="key" id="playpause">Play</button>
+        <button class="key sq" id="restart" title="Restart" aria-label="Restart">↺</button>
+      </div>
+    </div>
+
+    <div class="group clean">
+      <div class="cleanrow">
+        <button class="key" id="shift">Clear pad</button>
+        <button class="key" id="clearall">Reset</button>
+      </div>
+    </div>
+
+    <div class="padplate"><div class="pads" id="pads"></div></div>
+
+    <div class="tips">
+      <div class="tip"><span class="ico">◉</span><span><b>Empty pad</b> saves the spot · <b>lit pad</b> jumps to it (sample start)</span></div>
+      <div class="tip kbtip"><span class="ico">⌨</span><span>pads from keyboard</span>
+        <span class="keys"><kbd>1234</kbd><kbd>QWER</kbd><kbd>ASDF</kbd><kbd>ZXCV</kbd></span></div>
+    </div>
+
+    <!-- social -->
+    <div class="social">
+      <a href="https://www.youtube.com/@unmiliardodibeats" target="_blank" rel="noopener" title="YouTube">
+        <svg viewBox="0 0 24 24"><path d="M23 7.5a3 3 0 0 0-2.1-2.1C19 5 12 5 12 5s-7 0-8.9.4A3 3 0 0 0 1 7.5 31 31 0 0 0 .6 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2.1 2.1C5 19 12 19 12 19s7 0 8.9-.4a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.4 12 31 31 0 0 0 23 7.5zM9.8 15.3V8.7l5.7 3.3z"/></svg></a>
+      <a href="https://instagram.com/unmiliardodibeats" target="_blank" rel="noopener" title="Instagram">
+        <svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.8.3 2.2.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.1.4.3 1 .4 2.2.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.8-.4 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.1-1 .3-2.2.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.3-2.2-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.1-.4-.3-1-.4-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.3-1.8.4-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.1 1-.3 2.2-.4C8.4 2.2 8.8 2.2 12 2.2m0-2.2C8.7 0 8.3 0 7 .1 5.7.1 4.8.3 4.1.6c-.8.3-1.4.7-2.1 1.4C1.3 2.7.9 3.3.6 4.1.3 4.8.1 5.7.1 7 0 8.3 0 8.7 0 12s0 3.7.1 5c.1 1.3.3 2.2.5 2.9.3.8.7 1.4 1.4 2.1.7.7 1.3 1.1 2.1 1.4.7.3 1.6.4 2.9.5 1.3.1 1.7.1 5 .1s3.7 0 5-.1c1.3-.1 2.2-.3 2.9-.5.8-.3 1.4-.7 2.1-1.4.7-.7 1.1-1.3 1.4-2.1.3-.7.4-1.6.5-2.9.1-1.3.1-1.7.1-5s0-3.7-.1-5c-.1-1.3-.3-2.2-.5-2.9-.3-.8-.7-1.4-1.4-2.1C21.3 1.3 20.7.9 19.9.6 19.2.3 18.3.1 17 .1 15.7 0 15.3 0 12 0z"/><path d="M12 5.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4zm0 10.2a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/><circle cx="18.4" cy="5.6" r="1.4"/></svg></a>
+      <a href="https://unmiliardodibeats.it" target="_blank" rel="noopener" title="Website">
+        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-2.6a15 15 0 0 0-1.2-3.3A8 8 0 0 1 18.9 8zM12 4c.7 1 1.3 2.3 1.6 4h-3.2C10.7 6.3 11.3 5 12 4zM4.3 14a8 8 0 0 1 0-4h3a17 17 0 0 0 0 4zm.8 2h2.6a15 15 0 0 0 1.2 3.3A8 8 0 0 1 5.1 16zM7.7 8H5.1a8 8 0 0 1 3.8-3.3A15 15 0 0 0 7.7 8zM12 20c-.7-1-1.3-2.3-1.6-4h3.2c-.3 1.7-.9 3-1.6 4zm2-6h-4a15 15 0 0 1 0-4h4a15 15 0 0 1 0 4zm.9 5.3a15 15 0 0 0 1.2-3.3h2.6a8 8 0 0 1-3.8 3.3zM16.7 14a17 17 0 0 0 0-4h3a8 8 0 0 1 0 4z"/></svg></a>
+    </div>
+  </div>
+
+<script>
+  // loader: sparisce quando la barra ha finito
+  window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1900); });
+
+  let POOL = [];  // caricato da videos.json (pool di sample campionabili)
+  fetch('videos.json').then(r=>r.json()).then(d=>{ POOL=d; }).catch(()=>{ POOL=[{id:"jNQXAC9IVRw"}]; });
+  const KEYS = ['1','2','3','4','q','w','e','r','a','s','d','f','z','x','c','v'];
+  const pick = ()=> POOL.length ? POOL[Math.floor(Math.random()*POOL.length)].id : "jNQXAC9IVRw";
+  let player=null, ready=false, dur=0, clearMode=false;
+  let pads = JSON.parse(localStorage.getItem('umdb_pads')||'null') || Array(16).fill(null);
+  let lastVid = localStorage.getItem('umdb_vid') || '';
+  const $=s=>document.querySelector(s);
+  const msg=$('#msg'), clock=$('#clock'), novid=$('#novid');
+  const setMsg=t=>msg.textContent=t;
+  const fmt=s=>{ if(isNaN(s)||s<0)return '0:00'; s=Math.floor(s); return (s/60|0)+':'+String(s%60).padStart(2,'0'); };
+  const save=()=>{ localStorage.setItem('umdb_pads',JSON.stringify(pads)); if(lastVid)localStorage.setItem('umdb_vid',lastVid); };
+  const grid=$('#pads');
+  pads.forEach((_,i)=>{ const p=document.createElement('button'); p.className='pad'; p.dataset.i=i;
+    p.innerHTML='<span class="lbl">'+String(i+1).padStart(2,'0')+'</span><span class="t"></span>';
+    p.addEventListener('click',()=>hitPad(i)); grid.appendChild(p); });
+  function renderPads(){ [...grid.children].forEach((el,i)=>{ el.classList.toggle('set',pads[i]!=null);
+    el.classList.toggle('clearmode',clearMode); el.querySelector('.t').textContent=pads[i]!=null?fmt(pads[i]):'—'; }); }
+  function flash(i){ const el=grid.children[i]; el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'),240); }
+  function hitPad(i){ const lab='PAD '+String(i+1).padStart(2,'0');
+    if(clearMode){ pads[i]=null; save(); renderPads(); setMsg(lab+' CLEAR'); return; }
+    if(!ready){ setMsg('PRESS RANDOM'); return; }
+    if(pads[i]==null){ pads[i]=player.getCurrentTime(); save(); renderPads(); setMsg(lab+' SET '+fmt(pads[i])); }
+    else { flash(i); setMsg(lab+' ►'+fmt(pads[i])); player.seekTo(pads[i],true); player.playVideo(); } }
+  function loadVideo(id){ if(!id){ setMsg('—'); return; } lastVid=id; novid.style.display='none'; setMsg('LOADING…');
+    if(player&&player.loadVideoById) player.loadVideoById(id);
+    else player=new YT.Player('player',{videoId:id,
+      playerVars:{playsinline:1,rel:0,controls:0,disablekb:1,modestbranding:1,iv_load_policy:3},
+      events:{onReady:()=>{ready=true;dur=player.getDuration();setMsg('READY');},
+        onError:()=>{ setMsg('SKIP…'); setTimeout(rollRandom,300); },   // video non riproducibile → ripesca
+        onStateChange:e=>{ if(e.data===1){dur=player.getDuration();setMsg('PLAY'); $('#playpause').textContent='Pause';}
+          if(e.data===2){setMsg('PAUSE'); $('#playpause').textContent='Play';} }}}); }
+  function rollRandom(){ const id=pick(); setMsg('◉ ROULETTE…'); loadVideo(id);
+    const seek=()=>{ if(ready&&dur){ player.seekTo(Math.random()*dur*0.8,true); player.playVideo(); } else setTimeout(seek,250); }; setTimeout(seek,600); }
+  window.onYouTubeIframeAPIReady=()=>{ if(lastVid) loadVideo(lastVid); };
+  const tlfill=$('#tlfill');
+  setInterval(()=>{ if(ready){ const t=player.getCurrentTime(); clock.textContent=fmt(t)+' / '+fmt(dur);
+    tlfill.style.width=(dur? Math.min(100,t/dur*100):0)+'%'; } },200);
+  $('#timeline').addEventListener('click',e=>{ if(!ready||!dur)return;
+    const r=e.currentTarget.getBoundingClientRect(); const f=(e.clientX-r.left)/r.width;
+    player.seekTo(f*dur,true); player.playVideo(); });
+  $('#random').addEventListener('click',e=>{ const b=e.currentTarget; b.classList.remove('blink'); void b.offsetWidth; b.classList.add('blink'); rollRandom(); });
+  $('#playpause').addEventListener('click',()=>{ if(!ready)return; const s=player.getPlayerState(); s===1?player.pauseVideo():player.playVideo(); });
+  $('#restart').addEventListener('click',()=>{ if(!ready)return; player.seekTo(0,true); player.playVideo(); setMsg('◄ START'); });
+  $('#shift').addEventListener('click',e=>{ clearMode=!clearMode; e.currentTarget.classList.toggle('on',clearMode); renderPads(); setMsg(clearMode?'CLEAR MODE':'READY'); });
+  $('#clearall').addEventListener('click',()=>{ pads=Array(16).fill(null); save(); renderPads(); setMsg('RESET'); });
+  document.querySelectorAll('.jbtn').forEach(b=>b.addEventListener('click',()=>{
+    if(!ready)return; const d=+b.dataset.d; let t=Math.max(0,Math.min(dur||1e9,player.getCurrentTime()+d));
+    player.seekTo(t,true); player.playVideo(); setMsg((d>0?'►+':'◄')+Math.abs(d)+'s  '+fmt(t)); }));
+  window.addEventListener('keydown',e=>{ if(e.target.closest('a'))return; const i=KEYS.indexOf(e.key.toLowerCase());
+    if(i>=0){ e.preventDefault(); hitPad(i); } if(e.key===' '){ e.preventDefault(); $('#playpause').click(); } });
+  renderPads();
+  const tag=document.createElement('script'); tag.src="https://www.youtube.com/iframe_api"; document.head.appendChild(tag);
+</script>
+</body>
+</html>
