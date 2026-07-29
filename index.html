@@ -236,21 +236,22 @@
   .knob .kl{font-size:.5rem; letter-spacing:.05em; text-transform:uppercase; color:var(--txt-dim); font-weight:800; white-space:nowrap}
   .knob .kv{font-family:"Courier New",monospace; font-size:.58rem; color:var(--lcd); background:var(--lcd-bg); padding:1px 5px; border-radius:3px;
     min-width:44px; text-align:center; box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
-  .console .tr{flex:1 1 auto; display:flex; gap:8px; align-self:stretch}
-  .console .tr .key{flex:1; margin:0}
-  .console .tr .key.sq{flex:0 0 46px; text-align:center; padding-left:0; font-size:1.15rem}
-  .console .tr .key.sq::before{display:none}
+  .console .tr{flex:1 1 auto; display:flex; gap:8px; align-self:center}   /* NON stretch: transport più bassi, centrati */
+  .console .tr .key{flex:1; margin:0; height:42px; padding:0 8px; text-align:center; display:flex; align-items:center; justify-content:center; font-size:.82rem}
+  .console .tr .key::before{display:none}
+  .console .tr .key.sq{flex:0 0 44px; font-size:1.25rem}
 
   /* RANDOM grande */
   .bigrow{margin-top:12px}
   .key.big{width:100%; text-align:center; padding:16px 14px; font-size:1.05rem; letter-spacing:.18em}
 
   /* EDIT PAD in riga con Clear/Reset, fuori dall'azzurro */
-  .editrow{display:grid; grid-template-columns:2fr 1fr; gap:8px; margin-top:12px; align-items:stretch}
+  .editrow{display:grid; grid-template-columns:2fr 1fr; gap:8px; margin-top:12px; align-items:center}   /* Edit basso come Reset, centrato */
   .editrow .group.clean{margin-top:0}
-  .key.editpad{margin:0; height:100%; color:#4a2f08; background:linear-gradient(180deg,#ffce78,#e0a63a); border-color:#b47a1c;
-    box-shadow:0 4px 0 #9c6a17, 0 5px 8px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.5) inset}
-  .key.editpad::before{background:#7a5216; box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
+  .key.editpad{margin:0; color:#e9e7e1; background:linear-gradient(180deg,#4a4945,#343330); border-color:#232220;
+    box-shadow:0 4px 0 #1b1a18, 0 5px 8px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.12) inset}
+  .key.editpad::before{background:#6d6b64; box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
+  .key.editpad.on{background:linear-gradient(180deg,#585751,#3f3e3a)}
   .key.editpad.on::before{background:#67e05a; box-shadow:0 0 9px var(--led-grn)}
   .nudgebar{display:none; margin-top:8px; padding:9px 8px; border-radius:10px;
     background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border:1px solid var(--groove); box-shadow:0 2px 5px rgba(0,0,0,.4) inset}
@@ -379,7 +380,7 @@
     <div class="editrow">
       <div class="group clean">
         <div class="cleanrow">
-          <button class="key" id="shift">Clear pad</button>
+          <button class="key" id="shift">Clear</button>
           <button class="key" id="clearall">Reset</button>
         </div>
       </div>
@@ -421,7 +422,7 @@
   // loader: sparisce dopo un attimo
   window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1600); });
   // registra il service worker (PWA installabile)
-  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=6').catch(()=>{})); }
+  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=7').catch(()=>{})); }
 
   const AUDIO='/a/';                    // stesso dominio: sampler.francescopavani.it/a/<id>
   const $=s=>document.querySelector(s);
@@ -463,8 +464,8 @@
   // cambio velocità: se sta suonando ribaso offset/startedAt col rate VECCHIO → nessun salto
   function setRate(r){ r=Math.max(RMIN,Math.min(RMAX,r)); if(playing){ offset=curTime(); startedAt=ac.currentTime; } rate=r; if(srcNode) srcNode.playbackRate.value=rate; }
 
-  async function loadAudio(id){ ensureAC(); const tok=++loadTok; stopSrc(); playing=false; buffer=null; peaks=null; curDur=0; offset=0; zoom=1; viewStart=0; selPad=-1; lastPad=-1;
-    setPlay(); showFlag(false); loadingActive=true; setMsg('EXTRACTING…'); updateClock(); updateZoomBadge(); if(zoomKnob)zoomKnob.set(1); updateNudgeInfo();
+  async function loadAudio(id){ ensureAC(); const tok=++loadTok; stopSrc(); playing=false; buffer=null; peaks=null; curDur=0; offset=0; zoom=1; viewStart=0; selPad=-1; lastPad=-1; rate=1;
+    setPlay(); showFlag(false); loadingActive=true; setMsg('EXTRACTING…'); updateClock(); updateZoomBadge(); if(zoomKnob)zoomKnob.set(1); if(speedKnob)speedKnob.set(1); updateNudgeInfo();
     $('#thumb').href='https://youtu.be/'+id;
     $('#thumbImg').src='https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
     try{

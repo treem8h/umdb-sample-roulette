@@ -46,7 +46,7 @@ if os.path.exists(OUT):
                 vr=yt.videos().list(part='contentDetails,status,statistics',id=','.join(ids[i:i+50])).execute(); calls+=1
                 for it in vr.get('items',[]):
                     vid=it['id']; d=iso_to_sec(it['contentDetails']['duration'])
-                    views=int(it.get('statistics',{}).get('viewCount',0) or 0)
+                    views=int(it.get('statistics',{}).get('viewCount') or 10**9)  # niente view pubbliche = sospetto famoso → scartato
                     if d<45 or d>600: continue
                     if not it.get('status',{}).get('embeddable',True): continue
                     if views>30000: continue
@@ -76,7 +76,7 @@ for qi,q in enumerate(QUERIES):
                 for it in v.get('items',[]):
                     vid=it['id']; d=iso_to_sec(it['contentDetails']['duration'])
                     st=it.get('status',{})
-                    views=int(it.get('statistics',{}).get('viewCount',0) or 0)
+                    views=int(it.get('statistics',{}).get('viewCount') or 10**9)  # niente view pubbliche = sospetto famoso → scartato
                     if d<45 or d>600: continue
                     if not st.get('embeddable',True): continue
                     if views>30000: continue          # digger: solo roba underground (< 30k views (underground digger))
