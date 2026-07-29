@@ -5,11 +5,11 @@
 <title>UMDB Sample Roulette</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#ff5a1f">
+<meta name="theme-color" content="#eeece6">
 <meta name="description" content="Random sample roulette for beatmakers — Un Miliardo di Beats">
 <!-- iOS installabile (Safari → Condividi → Aggiungi a Home) -->
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Sampler">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="assets/icon-192.png">
@@ -43,8 +43,8 @@
   @media (display-mode: standalone), (display-mode: fullscreen){
     body{ padding:0; margin:0; background:var(--shell); min-height:100dvh; display:block; }
     .unit{ max-width:none; width:100%; margin:0; min-height:100dvh; border:0; border-radius:0; box-shadow:none;
-      padding:calc(env(safe-area-inset-top,0px) + 14px) calc(env(safe-area-inset-right,0px) + 16px)
-              calc(env(safe-area-inset-bottom,0px) + 18px) calc(env(safe-area-inset-left,0px) + 16px); }
+      padding:calc(env(safe-area-inset-top,0px) + 20px) calc(env(safe-area-inset-right,0px) + 16px)
+              calc(env(safe-area-inset-bottom,0px) + 26px) calc(env(safe-area-inset-left,0px) + 16px); }
   }
 
   /* ===== LOADER minimal ===== */
@@ -423,7 +423,7 @@
   // loader: sparisce dopo un attimo
   window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1600); });
   // registra il service worker (PWA installabile)
-  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=8').catch(()=>{})); }
+  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=9').catch(()=>{})); }
 
   const AUDIO='/a/';                    // stesso dominio: sampler.francescopavani.it/a/<id>
   const $=s=>document.querySelector(s);
