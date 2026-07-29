@@ -3,7 +3,16 @@
 <head>
 <meta charset="utf-8">
 <title>UMDB Sample Roulette</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ff5a1f">
+<meta name="description" content="Random sample roulette for beatmakers — Un Miliardo di Beats">
+<!-- iOS installabile (Safari → Condividi → Aggiungi a Home) -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sampler">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="assets/icon-192.png">
 <style>
   @font-face{ font-family:"PANEL"; src:url("assets/SairaSemiCondensed-SemiBold.ttf") format("truetype"); font-weight:600; font-display:swap; }
   @font-face{ font-family:"PANEL"; src:url("assets/SairaSemiCondensed-Medium.ttf") format("truetype"); font-weight:500; font-display:swap; }
@@ -21,7 +30,9 @@
   html,body{margin:0; min-height:100%}
   body{
     min-height:100vh; display:grid; place-items:center;
-    background:#141311; color:var(--txt); font-weight:600;
+    /* mobile: fondo chiaro → il device sembra appoggiato con la sua ombra */
+    background:radial-gradient(circle at 50% 28%, #f3f1eb, #d9d7d0 78%);
+    color:var(--txt); font-weight:600;
     font-family:"PANEL","Arial Narrow",Arial,sans-serif;
     padding:clamp(34px,9vh,90px) clamp(10px,3vw,44px); position:relative; overflow-x:hidden;
   }
@@ -205,6 +216,13 @@
   .social a:active{transform:translateY(1px); box-shadow:none}
   .social svg{width:17px; height:17px; fill:currentColor}
 
+  /* toast feedback */
+  .toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(18px); z-index:40;
+    background:#2c2c2b; color:#fff; padding:10px 18px; border-radius:9px; font-family:"PANEL",sans-serif;
+    font-size:.82rem; letter-spacing:.04em; box-shadow:0 8px 24px rgba(0,0,0,.4);
+    opacity:0; pointer-events:none; transition:opacity .25s, transform .25s}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
   @media (pointer:coarse), (max-width:520px){ .tip.kbtip{display:none} }
   @media (min-width:860px){ .desk{display:block} }
   @media (prefers-reduced-motion:reduce){#boot img,#boot .bar i{animation:none} #boot .bar i{width:100%}}
@@ -219,6 +237,8 @@
 
 
   <!-- DEVICE -->
+  <div class="toast" id="toast"></div>
+
   <div class="unit">
     <div class="topbar">
       <button class="tbtn" id="histBtn" title="Session history" aria-label="History">≡</button>
@@ -304,10 +324,15 @@
   // loader: sparisce quando la barra ha finito
   window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1900); });
 
-  let POOL = [], curTrack = null;
+  // registra il service worker (PWA installabile)
+  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+
+  let POOL = [], curTrack = null, ytReady=false, autoRolled=false;
   // blocklist: video segnalati "not music" → esclusi (persistente)
   let blocked = new Set(JSON.parse(localStorage.getItem('umdb_block')||'[]'));
-  fetch('videos.json').then(r=>r.json()).then(d=>{ POOL=d.filter(v=>!blocked.has(v.id)); }).catch(()=>{ POOL=[{id:"jNQXAC9IVRw",t:"test"}]; });
+  fetch('videos.json').then(r=>r.json()).then(d=>{ POOL=d.filter(v=>!blocked.has(v.id)); tryAutoRoll(); }).catch(()=>{ POOL=[]; });
+  // all'apertura: pesca SUBITO un sample casuale (mai lo stesso, mai "me at the zoo")
+  function tryAutoRoll(){ if(ytReady && POOL.length && !autoRolled){ autoRolled=true; rollRandom(); } }
   const KEYS = ['1','2','3','4','q','w','e','r','a','s','d','f','z','x','c','v'];
   // no-repeat: non ripescare finché non hai visto tutto il pool (persistente)
   let seen = new Set(JSON.parse(localStorage.getItem('umdb_seen')||'[]'));
@@ -357,7 +382,7 @@
   function rollRandom(){ const v=pick(); curTrack=v; setMsg('◉ ROULETTE…'); loadVideo(v.id); addHistory(v); bumpSub();
     const seek=()=>{ if(ready&&dur){ player.seekTo(Math.random()*dur*0.8,true); player.playVideo(); } else setTimeout(seek,250); }; setTimeout(seek,600); }
   function playTrack(v){ curTrack=v; loadVideo(v.id); setMsg('◉ '+(v.t||v.id).slice(0,22)); setTimeout(()=>{ if(ready)player.playVideo(); },500); }
-  window.onYouTubeIframeAPIReady=()=>{ if(lastVid) loadVideo(lastVid); };
+  window.onYouTubeIframeAPIReady=()=>{ ytReady=true; tryAutoRoll(); };
   const tlfill=$('#tlfill');
   setInterval(()=>{ if(ready){ const t=player.getCurrentTime(); clock.textContent=fmt(t)+' / '+fmt(dur);
     tlfill.style.width=(dur? Math.min(100,t/dur*100):0)+'%'; } },200);
@@ -383,10 +408,14 @@
   $('#histBtn').addEventListener('click',()=>{ renderHistory(); $('#histpanel').classList.toggle('open'); });
   $('#histClose').addEventListener('click',()=>$('#histpanel').classList.remove('open'));
 
+  // ---- toast ----
+  function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
   // ---- condividi ----
-  $('#shareBtn').addEventListener('click',async()=>{ const url=location.href.split('?')[0];
+  $('#shareBtn').addEventListener('click',async()=>{ const url='https://sampler.francescopavani.it';
     const data={title:'UMDB Sample Roulette', text:'Random sample roulette for beatmakers 🎛️', url};
-    try{ if(navigator.share){ await navigator.share(data); } else { await navigator.clipboard.writeText(url); setMsg('LINK COPIED'); } }catch(e){} });
+    try{ if(navigator.share){ await navigator.share(data); toast('Shared ✓'); }
+      else { await navigator.clipboard.writeText(url); toast('Link copied ✓'); } }
+    catch(e){ try{ await navigator.clipboard.writeText(url); toast('Link copied ✓'); }catch(_){ toast(url); } } });
 
   // ---- banner iscriviti (ogni 8 roll) ----
   let rollCount=0, subTimer=null;

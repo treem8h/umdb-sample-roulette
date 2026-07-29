@@ -35,6 +35,13 @@ def iso_to_sec(s):
     h,mi,se=(int(x) if x else 0 for x in m.groups()); return h*3600+mi*60+se
 
 pool={}; calls=0
+# MERGE: parti dal pool esistente (cresce nel tempo invece di ripartire da zero)
+if os.path.exists(OUT):
+    try:
+        for v in json.load(open(OUT)):
+            if v.get('id'): pool[v['id']]=v
+        print(f"  pool esistente: {len(pool)} video (aggiungo i nuovi)")
+    except: pass
 for qi,q in enumerate(QUERIES):
     order=ORDERS[qi%len(ORDERS)]
     token=None
