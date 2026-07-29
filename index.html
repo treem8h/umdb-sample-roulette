@@ -56,9 +56,46 @@
     filter:brightness(0); opacity:.055; pointer-events:none;}
   .unit > *{position:relative; z-index:1}
 
-  .title{font-family:"PANEL",sans-serif; text-align:center; margin:0 0 13px;
-    font-size:1.05rem; letter-spacing:.16em; text-transform:uppercase; font-weight:600; color:var(--txt)}
+  /* topbar: history + titolo + share */
+  .topbar{display:grid; grid-template-columns:38px 1fr 38px; align-items:center; gap:8px; margin-bottom:12px}
+  .title{font-family:"PANEL",sans-serif; text-align:center; margin:0;
+    font-size:1.02rem; letter-spacing:.14em; text-transform:uppercase; font-weight:600; color:var(--txt)}
   .title b{color:var(--accent)}
+  .tbtn{appearance:none; cursor:pointer; border:0; height:34px; border-radius:8px; font-size:1rem; color:var(--key-txt);
+    background:linear-gradient(180deg,var(--key),var(--key-lo));
+    box-shadow:0 3px 0 var(--key-edge), 0 4px 5px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.85);
+    transition:transform .05s, box-shadow .05s}
+  .tbtn:active{transform:translateY(3px); box-shadow:0 0 0 var(--key-edge), inset 0 1px 3px rgba(0,0,0,.3)}
+  .tbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  /* pannello STORICO — menu LCD stile MPC dentro lo schermo */
+  .histpanel{position:absolute; inset:0; z-index:5; display:none; flex-direction:column;
+    background:var(--lcd-bg); color:var(--lcd); font-family:"Courier New",monospace}
+  .histpanel.open{display:flex}
+  .hphead{padding:8px 11px; border-bottom:1px solid #16351a; font-size:.72rem; letter-spacing:.2em;
+    text-transform:uppercase; display:flex; justify-content:space-between; text-shadow:0 0 7px var(--lcd-glow)}
+  .hplist{flex:1; overflow:auto; padding:4px 0}
+  .hitem{padding:7px 11px; font-size:.74rem; cursor:pointer; display:flex; gap:8px; border-bottom:1px solid #0e230f}
+  .hitem:hover{background:#0f2712}
+  .hitem .n{color:var(--lcd-dim); flex:none}
+  .hitem .tt{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .hpempty{padding:20px; text-align:center; color:var(--lcd-dim); font-size:.78rem}
+
+  /* tasto report (angolo video) */
+  .flagbtn{position:absolute; top:6px; right:6px; z-index:4; appearance:none; border:0; cursor:pointer;
+    width:27px; height:27px; border-radius:6px; background:rgba(0,0,0,.5); color:#ffb3a0; font-size:.9rem;
+    display:grid; place-items:center; transition:background .12s, color .12s, transform .05s}
+  .flagbtn:hover{background:var(--accent); color:#fff}
+  .flagbtn:active{transform:scale(.9)}
+
+  /* banner iscriviti */
+  .subbanner{position:absolute; left:0; right:0; bottom:0; z-index:6; display:none;
+    align-items:center; gap:10px; padding:9px 11px; background:rgba(10,10,10,.88); color:#fff;
+    font-family:"PANEL",sans-serif; font-size:.74rem; letter-spacing:.03em}
+  .subbanner.show{display:flex}
+  .subbanner a{margin-left:auto; background:var(--rec,#c0392b); color:#fff; text-decoration:none;
+    padding:6px 12px; border-radius:6px; font-weight:600; white-space:nowrap; box-shadow:0 2px 0 #7e2019}
+  .subbanner .x{appearance:none; border:0; background:transparent; color:#bbb; font-size:1.1rem; cursor:pointer; padding:0 2px}
 
   .plate{background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border-radius:12px; padding:9px;
     border:1px solid var(--groove); box-shadow:0 2px 5px rgba(0,0,0,.4) inset, 0 1px 0 rgba(255,255,255,.15)}
@@ -183,7 +220,11 @@
 
   <!-- DEVICE -->
   <div class="unit">
-    <h1 class="title">UMDB <b>Sample</b> Roulette</h1>
+    <div class="topbar">
+      <button class="tbtn" id="histBtn" title="Session history" aria-label="History">≡</button>
+      <h1 class="title">UMDB <b>Sample</b> Roulette</h1>
+      <button class="tbtn" id="shareBtn" title="Share" aria-label="Share">⤴</button>
+    </div>
 
     <div class="plate">
       <div class="screen">
@@ -194,6 +235,16 @@
             <span>hit RANDOM to pull<br>a sample to chop</span>
           </div>
           <div class="scan"></div>
+          <button class="flagbtn" id="reportBtn" title="Report: not music / not a sample" aria-label="Report">⚑</button>
+          <div class="histpanel" id="histpanel">
+            <div class="hphead"><span>Session history</span><span id="histClose" style="cursor:pointer">✕ close</span></div>
+            <div class="hplist" id="hplist"></div>
+          </div>
+          <div class="subbanner" id="subbanner">
+            <span>Diggin' it? Subscribe to the channel</span>
+            <a href="https://www.youtube.com/@unmiliardodibeats?sub_confirmation=1" target="_blank" rel="noopener">Subscribe</a>
+            <button class="x" id="subX" aria-label="close">✕</button>
+          </div>
         </div>
         <div class="timeline" id="timeline"><i id="tlfill"></i></div>
         <div class="lcd"><span class="msg" id="msg">READY</span><span class="time" id="clock">0:00 / 0:00</span></div>
@@ -253,10 +304,28 @@
   // loader: sparisce quando la barra ha finito
   window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1900); });
 
-  let POOL = [];  // caricato da videos.json (pool di sample campionabili)
-  fetch('videos.json').then(r=>r.json()).then(d=>{ POOL=d; }).catch(()=>{ POOL=[{id:"jNQXAC9IVRw"}]; });
+  let POOL = [], curTrack = null;
+  // blocklist: video segnalati "not music" → esclusi (persistente)
+  let blocked = new Set(JSON.parse(localStorage.getItem('umdb_block')||'[]'));
+  fetch('videos.json').then(r=>r.json()).then(d=>{ POOL=d.filter(v=>!blocked.has(v.id)); }).catch(()=>{ POOL=[{id:"jNQXAC9IVRw",t:"test"}]; });
   const KEYS = ['1','2','3','4','q','w','e','r','a','s','d','f','z','x','c','v'];
-  const pick = ()=> POOL.length ? POOL[Math.floor(Math.random()*POOL.length)].id : "jNQXAC9IVRw";
+  // no-repeat: non ripescare finché non hai visto tutto il pool (persistente)
+  let seen = new Set(JSON.parse(localStorage.getItem('umdb_seen')||'[]'));
+  // storico sessione: lista dei sample pescati
+  let history = JSON.parse(localStorage.getItem('umdb_history')||'[]');
+  function pick(){
+    if(!POOL.length) return {id:"jNQXAC9IVRw"};
+    let fresh = POOL.filter(v=>!seen.has(v.id));
+    if(!fresh.length){ seen.clear(); fresh = POOL; }   // visto tutto → ricomincia
+    const v = fresh[Math.floor(Math.random()*fresh.length)];
+    seen.add(v.id); localStorage.setItem('umdb_seen',JSON.stringify([...seen].slice(-4000)));
+    return v;
+  }
+  function addHistory(v){
+    if(!v) return; history.unshift({id:v.id, t:v.t||v.id, at:Date.now()});
+    history = history.slice(0,60); localStorage.setItem('umdb_history',JSON.stringify(history));
+    renderHistory();
+  }
   let player=null, ready=false, dur=0, clearMode=false;
   let pads = JSON.parse(localStorage.getItem('umdb_pads')||'null') || Array(16).fill(null);
   let lastVid = localStorage.getItem('umdb_vid') || '';
@@ -285,8 +354,9 @@
         onError:()=>{ setMsg('SKIP…'); setTimeout(rollRandom,300); },   // video non riproducibile → ripesca
         onStateChange:e=>{ if(e.data===1){dur=player.getDuration();setMsg('PLAY'); $('#playpause').textContent='Pause';}
           if(e.data===2){setMsg('PAUSE'); $('#playpause').textContent='Play';} }}}); }
-  function rollRandom(){ const id=pick(); setMsg('◉ ROULETTE…'); loadVideo(id);
+  function rollRandom(){ const v=pick(); curTrack=v; setMsg('◉ ROULETTE…'); loadVideo(v.id); addHistory(v); bumpSub();
     const seek=()=>{ if(ready&&dur){ player.seekTo(Math.random()*dur*0.8,true); player.playVideo(); } else setTimeout(seek,250); }; setTimeout(seek,600); }
+  function playTrack(v){ curTrack=v; loadVideo(v.id); setMsg('◉ '+(v.t||v.id).slice(0,22)); setTimeout(()=>{ if(ready)player.playVideo(); },500); }
   window.onYouTubeIframeAPIReady=()=>{ if(lastVid) loadVideo(lastVid); };
   const tlfill=$('#tlfill');
   setInterval(()=>{ if(ready){ const t=player.getCurrentTime(); clock.textContent=fmt(t)+' / '+fmt(dur);
@@ -304,6 +374,36 @@
     player.seekTo(t,true); player.playVideo(); setMsg((d>0?'►+':'◄')+Math.abs(d)+'s  '+fmt(t)); }));
   window.addEventListener('keydown',e=>{ if(e.target.closest('a'))return; const i=KEYS.indexOf(e.key.toLowerCase());
     if(i>=0){ e.preventDefault(); hitPad(i); } if(e.key===' '){ e.preventDefault(); $('#playpause').click(); } });
+  // ---- storico sessione ----
+  function decodeE(s){ const t=document.createElement('textarea'); t.innerHTML=s||''; return t.value; }
+  function renderHistory(){ const list=$('#hplist'); if(!list) return;
+    if(!history.length){ list.innerHTML='<div class="hpempty">No samples yet — hit RANDOM</div>'; return; }
+    list.innerHTML=history.map((h,i)=>`<div class="hitem" data-i="${i}"><span class="n">${String(i+1).padStart(2,'0')}</span><span class="tt">${decodeE(h.t)}</span></div>`).join('');
+    list.querySelectorAll('.hitem').forEach(el=>el.addEventListener('click',()=>{ const h=history[+el.dataset.i]; playTrack({id:h.id,t:h.t}); $('#histpanel').classList.remove('open'); })); }
+  $('#histBtn').addEventListener('click',()=>{ renderHistory(); $('#histpanel').classList.toggle('open'); });
+  $('#histClose').addEventListener('click',()=>$('#histpanel').classList.remove('open'));
+
+  // ---- condividi ----
+  $('#shareBtn').addEventListener('click',async()=>{ const url=location.href.split('?')[0];
+    const data={title:'UMDB Sample Roulette', text:'Random sample roulette for beatmakers 🎛️', url};
+    try{ if(navigator.share){ await navigator.share(data); } else { await navigator.clipboard.writeText(url); setMsg('LINK COPIED'); } }catch(e){} });
+
+  // ---- banner iscriviti (ogni 8 roll) ----
+  let rollCount=0, subTimer=null;
+  function bumpSub(){ rollCount++; if(rollCount%8===0){ const b=$('#subbanner'); b.classList.add('show');
+    clearTimeout(subTimer); subTimer=setTimeout(()=>b.classList.remove('show'),7000); } }
+  $('#subX').addEventListener('click',()=>$('#subbanner').classList.remove('show'));
+
+  // ---- report "not music": blocca localmente + accoda per la pulizia del pool ----
+  function reportTrack(){ if(!curTrack) return;
+    blocked.add(curTrack.id); localStorage.setItem('umdb_block',JSON.stringify([...blocked].slice(-3000)));
+    let reps=JSON.parse(localStorage.getItem('umdb_reports')||'[]');
+    reps.push({id:curTrack.id, t:curTrack.t||'', at:Date.now()}); localStorage.setItem('umdb_reports',JSON.stringify(reps.slice(-500)));
+    POOL=POOL.filter(v=>v.id!==curTrack.id);
+    setMsg('⚑ REPORTED — skipping'); setTimeout(rollRandom,450); }
+  $('#reportBtn').addEventListener('click',reportTrack);
+
+  renderHistory();
   renderPads();
   const tag=document.createElement('script'); tag.src="https://www.youtube.com/iframe_api"; document.head.appendChild(tag);
 </script>
