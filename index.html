@@ -92,7 +92,7 @@
   .hitem .tt{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .hpempty{padding:20px; text-align:center; color:var(--lcd-dim); font-size:.78rem}
 
-  /* tasto report (angolo video) */
+  /* tasto report (angolo schermo) */
   .flagbtn{position:absolute; top:6px; right:6px; z-index:4; appearance:none; border:0; cursor:pointer;
     width:27px; height:27px; border-radius:6px; background:rgba(0,0,0,.5); color:#ffb3a0; font-size:.9rem;
     display:grid; place-items:center; transition:background .12s, color .12s, transform .05s}
@@ -110,22 +110,23 @@
 
   .plate{background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border-radius:12px; padding:9px;
     border:1px solid var(--groove); box-shadow:0 2px 5px rgba(0,0,0,.4) inset, 0 1px 0 rgba(255,255,255,.15)}
-  .screen{position:relative; border-radius:7px; overflow:hidden; background:#000; border:2px solid #000}
-  /* altezza BLINDATA (padding-bottom 56.25%) → lo schermo non cambia mai dimensione */
-  .video-wrap{position:relative; width:100%; height:0; padding-bottom:56.25%; background:#000; overflow:hidden}
-  #player,.video-wrap iframe{position:absolute; inset:0; width:100%; height:100%; border:0; pointer-events:none}
-  .novid{position:absolute; inset:0; display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center;
+  .screen{position:relative; border-radius:7px; overflow:hidden; background:var(--lcd-bg); border:2px solid #000}
+
+  /* ===== PLAYER stile SoundCloud: thumb sorgente a sx + waveform a dx ===== */
+  .sc-player{position:relative; display:flex; gap:9px; align-items:stretch; padding:9px; height:120px; background:var(--lcd-bg)}
+  .sc-thumb{flex:0 0 auto; width:100px; border-radius:6px; overflow:hidden; position:relative; display:block;
+    border:1px solid #16351a; text-decoration:none; background:#04110a}
+  .sc-thumb img{width:100%; height:100%; object-fit:cover; display:block; filter:contrast(1.05) saturate(1.05)}
+  .sc-thumb::after{content:"► SOURCE"; position:absolute; left:0; right:0; bottom:0; font-family:"Courier New",monospace;
+    font-size:.5rem; letter-spacing:.16em; text-align:center; color:#dff; background:rgba(0,0,0,.6); padding:3px 0; opacity:0; transition:opacity .15s}
+  .sc-thumb:hover::after{opacity:1}
+  .sc-wave{flex:1 1 auto; position:relative; cursor:pointer; min-width:0}
+  #wave{width:100%; height:100%; display:block; touch-action:none}
+
+  .novid{position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center;
     color:var(--lcd-dim); font-family:"Courier New",monospace; font-size:.82rem; letter-spacing:.15em; text-align:center; padding:18px; background:var(--lcd-bg)}
   .novid .big{color:var(--lcd); font-size:1rem; letter-spacing:.25em; text-shadow:0 0 10px var(--lcd-glow)}
-  .scan{position:absolute; inset:0; pointer-events:none; mix-blend-mode:overlay; opacity:.35;
-    background:repeating-linear-gradient(0deg, rgba(0,0,0,.4) 0 1px, transparent 1px 3px)}
-  /* tap sullo schermo = play/pausa */
-  .taplayer{position:absolute; inset:0; z-index:3; cursor:pointer}
-  /* timeline scorrevole */
-  .timeline{position:relative; height:6px; background:#081207; cursor:pointer; border-top:1px solid #000}
-  .timeline i{position:absolute; left:0; top:0; height:100%; width:0; background:var(--lcd);
-    box-shadow:0 0 7px var(--lcd-glow)}
-  .timeline i::after{content:""; position:absolute; right:-1px; top:-1px; bottom:-1px; width:2px; background:#dfffce}
+
   .lcd{font-family:"Courier New",monospace; color:var(--lcd); background:var(--lcd-bg);
     border-top:1px solid #000; height:34px; padding:0 11px; display:flex; align-items:center; justify-content:space-between; gap:10px;
     font-size:.8rem; line-height:1; letter-spacing:.06em; text-shadow:0 0 7px var(--lcd-glow); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; box-sizing:border-box}
@@ -252,26 +253,26 @@
 
     <div class="plate">
       <div class="screen">
-        <div class="video-wrap">
-          <div id="player"></div>
+        <div class="sc-player">
+          <a class="sc-thumb" id="thumb" href="#" target="_blank" rel="noopener" title="Apri il video sorgente su YouTube">
+            <img id="thumbImg" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+          </a>
+          <div class="sc-wave" id="scwave"><canvas id="wave"></canvas></div>
           <div class="novid" id="novid">
             <span class="big">◉ UMDB ROULETTE</span>
             <span>hit RANDOM to pull<br>a sample to chop</span>
           </div>
-          <div class="scan"></div>
-          <div class="taplayer" id="taplayer"></div>
-          <button class="flagbtn" id="reportBtn" title="Report: not music / not a sample" aria-label="Report">⚑</button>
-          <div class="histpanel" id="histpanel">
-            <div class="hphead"><span>History</span><span><span id="histClear" style="cursor:pointer; margin-right:16px; opacity:.8">Clear</span><span id="histClose" style="cursor:pointer">✕</span></span></div>
-            <div class="hplist" id="hplist"></div>
-          </div>
-          <div class="subbanner" id="subbanner">
-            <span>Diggin' it? Subscribe to the channel</span>
-            <a href="https://www.youtube.com/@unmiliardodibeats?sub_confirmation=1" target="_blank" rel="noopener">Subscribe</a>
-            <button class="x" id="subX" aria-label="close">✕</button>
-          </div>
         </div>
-        <div class="timeline" id="timeline"><i id="tlfill"></i></div>
+        <button class="flagbtn" id="reportBtn" title="Report: not music / not a sample" aria-label="Report">⚑</button>
+        <div class="histpanel" id="histpanel">
+          <div class="hphead"><span>History</span><span><span id="histClear" style="cursor:pointer; margin-right:16px; opacity:.8">Clear</span><span id="histClose" style="cursor:pointer">✕</span></span></div>
+          <div class="hplist" id="hplist"></div>
+        </div>
+        <div class="subbanner" id="subbanner">
+          <span>Diggin' it? Subscribe to the channel</span>
+          <a href="https://www.youtube.com/@unmiliardodibeats?sub_confirmation=1" target="_blank" rel="noopener">Subscribe</a>
+          <button class="x" id="subX" aria-label="close">✕</button>
+        </div>
         <div class="lcd"><span class="msg" id="msg">READY</span><span class="time" id="clock">0:00 / 0:00</span></div>
       </div>
     </div>
@@ -309,7 +310,7 @@
     <div class="padplate"><div class="pads" id="pads"></div></div>
 
     <div class="tips">
-      <div class="tip"><span class="ico">◉</span><span><b>Empty pad</b> saves the spot · <b>lit pad</b> jumps to it (sample start)</span></div>
+      <div class="tip"><span class="ico">◉</span><span><b>Empty pad</b> saves the spot · <b>lit pad</b> jumps to it (instant cue)</span></div>
       <div class="tip kbtip"><span class="ico">⌨</span><span>pads from keyboard</span>
         <span class="keys"><kbd>1234</kbd><kbd>QWER</kbd><kbd>ASDF</kbd><kbd>ZXCV</kbd></span></div>
     </div>
@@ -326,127 +327,138 @@
   </div>
 
 <script>
-  // loader: sparisce quando la barra ha finito
-  window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1900); });
-
+  // loader: sparisce dopo un attimo
+  window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1600); });
   // registra il service worker (PWA installabile)
   if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 
-  let POOL = [], curTrack = null, ytReady=false;
-  // blocklist: video segnalati "not music" → esclusi (persistente)
-  let blocked = new Set(JSON.parse(localStorage.getItem('umdb_block')||'[]'));
-  fetch('videos.json').then(r=>r.json()).then(d=>{ POOL=d.filter(v=>!blocked.has(v.id)); }).catch(()=>{ POOL=[]; });
-  const KEYS = ['1','2','3','4','q','w','e','r','a','s','d','f','z','x','c','v'];
-  // no-repeat: non ripescare finché non hai visto tutto il pool (persistente)
-  let seen = new Set(JSON.parse(localStorage.getItem('umdb_seen')||'[]'));
-  // storico sessione: lista dei sample pescati
-  let history = JSON.parse(localStorage.getItem('umdb_history')||'[]');
-  function pick(){
-    if(!POOL.length) return {id:"jNQXAC9IVRw"};
-    let fresh = POOL.filter(v=>!seen.has(v.id));
-    if(!fresh.length){ seen.clear(); fresh = POOL; }   // visto tutto → ricomincia
-    const v = fresh[Math.floor(Math.random()*fresh.length)];
-    seen.add(v.id); localStorage.setItem('umdb_seen',JSON.stringify([...seen].slice(-4000)));
-    return v;
-  }
-  function addHistory(v){
-    if(!v) return; history.unshift({id:v.id, t:v.t||v.id, at:Date.now()});
-    history = history.slice(0,60); localStorage.setItem('umdb_history',JSON.stringify(history));
-    renderHistory();
-  }
-  let player=null, ready=false, dur=0, clearMode=false;
-  // pad PER-CANZONE: ogni brano ricorda i suoi pad
-  let padMap = JSON.parse(localStorage.getItem('umdb_padmap')||'{}');
-  let pads = Array(16).fill(null);
+  const AUDIO='/a/';                    // stesso dominio: sampler.francescopavani.it/a/<id>
   const $=s=>document.querySelector(s);
   const msg=$('#msg'), clock=$('#clock'), novid=$('#novid');
   const setMsg=t=>msg.textContent=t;
   const fmt=s=>{ if(isNaN(s)||s<0)return '0:00'; s=Math.floor(s); return (s/60|0)+':'+String(s%60).padStart(2,'0'); };
-  function loadPadsFor(id){ pads = padMap[id] ? padMap[id].slice() : Array(16).fill(null); renderPads(); }
-  function savePads(){ if(!curTrack) return; padMap[curTrack.id]=pads;
-    const ks=Object.keys(padMap); while(ks.length>120){ delete padMap[ks.shift()]; }
-    localStorage.setItem('umdb_padmap',JSON.stringify(padMap)); }
+
+  let POOL=[], curTrack=null;
+  let blocked=new Set(JSON.parse(localStorage.getItem('umdb_block')||'[]'));
+  fetch('videos.json').then(r=>r.json()).then(d=>{ POOL=d.filter(v=>!blocked.has(v.id)); }).catch(()=>{ POOL=[]; });
+  const KEYS=['1','2','3','4','q','w','e','r','a','s','d','f','z','x','c','v'];
+  let seen=new Set(JSON.parse(localStorage.getItem('umdb_seen')||'[]'));
+  let history=JSON.parse(localStorage.getItem('umdb_history')||'[]');
+  function pick(){ if(!POOL.length) return null;
+    let fresh=POOL.filter(v=>!seen.has(v.id)); if(!fresh.length){ seen.clear(); fresh=POOL; }
+    const v=fresh[Math.floor(Math.random()*fresh.length)];
+    seen.add(v.id); localStorage.setItem('umdb_seen',JSON.stringify([...seen].slice(-4000))); return v; }
+  function addHistory(v){ if(!v)return; history.unshift({id:v.id,t:v.t||v.id,at:Date.now()});
+    history=history.slice(0,60); localStorage.setItem('umdb_history',JSON.stringify(history)); renderHistory(); }
+
+  /* ===== MOTORE AUDIO (Web Audio) — cue ISTANTANEO ===== */
+  let ac=null, gain=null, buffer=null, srcNode=null, startedAt=0, offset=0, playing=false, curDur=0, loadTok=0, stopping=false, loadingActive=false, loadPhase=0;
+  function ensureAC(){ if(!ac){ ac=new (window.AudioContext||window.webkitAudioContext)(); gain=ac.createGain(); gain.connect(ac.destination); }
+    if(ac.state==='suspended') ac.resume(); return ac; }
+  function stopSrc(){ if(srcNode){ stopping=true; try{srcNode.stop();}catch(e){} try{srcNode.disconnect();}catch(e){} srcNode=null; stopping=false; } }
+  function curTime(){ return playing? Math.min(curDur, offset+(ac.currentTime-startedAt)) : offset; }
+  function setPlay(){ $('#playpause').textContent=playing?'Pause':'Play'; }
+  function startAt(t){ ensureAC(); if(!buffer)return; stopSrc();
+    offset=Math.max(0,Math.min(curDur,t||0));
+    srcNode=ac.createBufferSource(); srcNode.buffer=buffer; srcNode.connect(gain);
+    srcNode.start(0,offset); startedAt=ac.currentTime; playing=true;
+    srcNode.onended=()=>{ if(!stopping){ playing=false; offset=curDur; setPlay(); paint(); } };
+    setPlay(); paint(); }
+  function pauseA(){ if(!playing)return; offset=curTime(); stopSrc(); playing=false; setPlay(); paint(); }
+  function togglePlay(){ if(!buffer)return; playing? pauseA() : startAt(offset>=curDur-0.05?0:offset); }
+
+  async function loadAudio(id){ ensureAC(); const tok=++loadTok; stopSrc(); playing=false; buffer=null; peaks=null; curDur=0; offset=0;
+    setPlay(); loadingActive=true; setMsg('EXTRACTING…'); updateClock();
+    $('#thumb').href='https://youtu.be/'+id;
+    $('#thumbImg').src='https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
+    try{
+      const res=await fetch(AUDIO+id); if(!res.ok) throw 0;
+      const ab=await res.arrayBuffer(); if(tok!==loadTok) return;
+      buffer=await ac.decodeAudioData(ab); if(tok!==loadTok) return;
+      curDur=buffer.duration; computePeaks(); loadingActive=false; setMsg('READY'); startAt(0);
+    }catch(e){ if(tok!==loadTok) return; loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); }
+  }
+
+  /* ===== WAVEFORM ===== */
+  const NB=150; let peaks=null;
+  const wave=$('#wave'), wc=wave.getContext('2d');
+  function sizeWave(){ const dpr=Math.min(2,window.devicePixelRatio||1); const w=wave.clientWidth||280, h=wave.clientHeight||100;
+    wave.width=Math.round(w*dpr); wave.height=Math.round(h*dpr); wc.setTransform(dpr,0,0,dpr,0,0); }
+  function computePeaks(){ const ch=buffer.getChannelData(0), n=ch.length, blk=Math.max(1,Math.floor(n/NB)); peaks=new Float32Array(NB);
+    let mx=0; for(let i=0;i<NB;i++){ let m=0; const s=i*blk, e=Math.min(n,s+blk); for(let j=s;j<e;j+=2){ const a=Math.abs(ch[j]); if(a>m)m=a; } peaks[i]=m; if(m>mx)mx=m; }
+    if(mx>0) for(let i=0;i<NB;i++) peaks[i]=peaks[i]/mx; }
+  function drawWave(){ const W=wave.clientWidth,H=wave.clientHeight,mid=H/2; wc.clearRect(0,0,W,H); if(!peaks) return;
+    const prog=curDur? curTime()/curDur:0, bw=W/NB, gap=Math.max(1,bw*0.34);
+    for(let i=0;i<NB;i++){ const h=Math.max(2,peaks[i]*(H-4)); const x=i*bw; const played=(i+0.5)/NB<=prog;
+      wc.fillStyle=played?'#9dff7e':'#2c5628'; wc.fillRect(x,mid-h/2,Math.max(1,bw-gap),h); }
+    if(curDur) pads.forEach(t=>{ if(t!=null){ const x=(t/curDur)*W; wc.fillStyle='#ffb020'; wc.fillRect(x-0.6,0,1.4,H);
+      wc.beginPath(); wc.moveTo(x-3,0); wc.lineTo(x+3,0); wc.lineTo(x,4); wc.closePath(); wc.fill(); } });
+    const x=prog*W; wc.fillStyle='#eaffe0'; wc.fillRect(x-0.6,0,1.6,H); }
+  function drawLoading(){ const W=wave.clientWidth,H=wave.clientHeight,mid=H/2,bw=W/NB,gap=Math.max(1,bw*0.34); wc.clearRect(0,0,W,H);
+    for(let i=0;i<NB;i++){ const d=Math.abs((i/NB)-loadPhase); const g=Math.max(0,1-d*7); const amp=0.10+0.55*g; const h=Math.max(2,amp*(H-4)*0.7); const x=i*bw;
+      wc.globalAlpha=0.45+0.55*g; wc.fillStyle=g>0.2?'#9dff7e':'#274a24'; wc.fillRect(x,mid-h/2,Math.max(1,bw-gap),h);} wc.globalAlpha=1; }
+  function updateClock(){ clock.textContent=fmt(curTime())+' / '+fmt(curDur); }
+  function paint(){ drawWave(); updateClock(); }
+  function tick(){ if(loadingActive){ loadPhase=(loadPhase+0.02)%1; drawLoading(); } else if(playing){ drawWave(); updateClock(); } requestAnimationFrame(tick); }
+
+  /* ===== PADS (per-canzone) ===== */
+  let padMap=JSON.parse(localStorage.getItem('umdb_padmap')||'{}'); let pads=Array(16).fill(null); let clearMode=false;
+  function loadPadsFor(id){ pads=padMap[id]?padMap[id].slice():Array(16).fill(null); renderPads(); if(peaks)drawWave(); }
+  function savePads(){ if(!curTrack)return; padMap[curTrack.id]=pads; const ks=Object.keys(padMap); while(ks.length>120){ delete padMap[ks.shift()]; } localStorage.setItem('umdb_padmap',JSON.stringify(padMap)); }
   const grid=$('#pads');
   pads.forEach((_,i)=>{ const p=document.createElement('button'); p.className='pad'; p.dataset.i=i;
-    p.innerHTML='<span class="lbl">'+String(i+1).padStart(2,'0')+'</span><span class="t"></span>';
-    p.addEventListener('click',()=>hitPad(i)); grid.appendChild(p); });
-  function renderPads(){ [...grid.children].forEach((el,i)=>{ el.classList.toggle('set',pads[i]!=null);
-    el.classList.toggle('clearmode',clearMode); el.querySelector('.t').textContent=pads[i]!=null?fmt(pads[i]):'—'; }); }
+    p.innerHTML='<span class="lbl">'+String(i+1).padStart(2,'0')+'</span><span class="t"></span>'; p.addEventListener('click',()=>hitPad(i)); grid.appendChild(p); });
+  function renderPads(){ [...grid.children].forEach((el,i)=>{ el.classList.toggle('set',pads[i]!=null); el.classList.toggle('clearmode',clearMode); el.querySelector('.t').textContent=pads[i]!=null?fmt(pads[i]):'—'; }); }
   function flash(i){ const el=grid.children[i]; el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'),240); }
   function hitPad(i){ const lab='PAD '+String(i+1).padStart(2,'0');
-    if(clearMode){ pads[i]=null; savePads(); renderPads(); setMsg(lab+' CLEAR'); return; }
-    if(!ready){ setMsg('PRESS RANDOM'); return; }
-    if(pads[i]==null){ pads[i]=player.getCurrentTime(); savePads(); renderPads(); setMsg(lab+' SET '+fmt(pads[i])); }
-    else { flash(i); setMsg(lab+' ►'+fmt(pads[i])); player.seekTo(pads[i],true); player.playVideo(); } }
-  function loadVideo(id){ if(!id){ setMsg('—'); return; } novid.style.display='none'; setMsg('LOADING…');
-    if(player&&player.loadVideoById) player.loadVideoById(id);
-    else player=new YT.Player('player',{videoId:id,
-      playerVars:{playsinline:1,rel:0,controls:0,disablekb:1,modestbranding:1,iv_load_policy:3},
-      events:{onReady:()=>{ready=true;dur=player.getDuration();setMsg('READY');},
-        onError:()=>{ setMsg('SKIP…'); setTimeout(rollRandom,300); },   // video non riproducibile → ripesca
-        onStateChange:e=>{ if(e.data===1){dur=player.getDuration();setMsg('PLAY'); $('#playpause').textContent='Pause';}
-          if(e.data===2){setMsg('PAUSE'); $('#playpause').textContent='Play';} }}}); }
-  function rollRandom(){ if(!POOL.length){ setMsg('LOADING POOL…'); return; }
-    if(!window.YT||!window.YT.Player){ setMsg('LOADING…'); setTimeout(rollRandom,300); return; }
-    const v=pick(); curTrack=v; setMsg('◉ ROULETTE…'); loadVideo(v.id); addHistory(v); bumpSub(); loadPadsFor(v.id);
-    const go=()=>{ if(ready){ player.seekTo(0,true); player.playVideo(); } else setTimeout(go,250); }; setTimeout(go,400); }  // parte da 0:00
-  function playTrack(v){ curTrack=v; loadVideo(v.id); loadPadsFor(v.id); setMsg('◉ '+(v.t||v.id).slice(0,22));
-    const go=()=>{ if(ready){ player.seekTo(0,true); player.playVideo(); } else setTimeout(go,250); }; setTimeout(go,400); }
-  window.onYouTubeIframeAPIReady=()=>{ ytReady=true; };
-  const tlfill=$('#tlfill');
-  setInterval(()=>{ if(ready){ const t=player.getCurrentTime(); clock.textContent=fmt(t)+' / '+fmt(dur);
-    tlfill.style.width=(dur? Math.min(100,t/dur*100):0)+'%'; } },200);
-  $('#timeline').addEventListener('click',e=>{ if(!ready||!dur)return;
-    const r=e.currentTarget.getBoundingClientRect(); const f=(e.clientX-r.left)/r.width;
-    player.seekTo(f*dur,true); player.playVideo(); });
+    if(clearMode){ pads[i]=null; savePads(); renderPads(); drawWave(); setMsg(lab+' CLEAR'); return; }
+    if(!buffer){ setMsg('PRESS RANDOM'); return; }
+    if(pads[i]==null){ pads[i]=curTime(); savePads(); renderPads(); drawWave(); setMsg(lab+' SET '+fmt(pads[i])); }
+    else { flash(i); setMsg(lab+' ►'+fmt(pads[i])); startAt(pads[i]); } }
+
+  /* ===== ROULETTE ===== */
+  function rollRandom(){ if(!POOL.length){ setMsg('LOADING POOL…'); return; } ensureAC();
+    const v=pick(); if(!v)return; curTrack=v; novid.style.display='none'; setMsg('◉ ROULETTE…');
+    addHistory(v); bumpSub(); loadPadsFor(v.id); loadAudio(v.id); }
+  function playTrack(v){ ensureAC(); curTrack=v; novid.style.display='none'; loadPadsFor(v.id); setMsg('◉ '+(v.t||v.id).slice(0,22)); loadAudio(v.id); }
+
+  /* ===== controlli ===== */
   $('#random').addEventListener('click',e=>{ const b=e.currentTarget; b.classList.remove('blink'); void b.offsetWidth; b.classList.add('blink'); rollRandom(); });
-  $('#playpause').addEventListener('click',()=>{ if(!ready)return; const s=player.getPlayerState(); s===1?player.pauseVideo():player.playVideo(); });
-  $('#restart').addEventListener('click',()=>{ if(!ready)return; player.seekTo(0,true); player.playVideo(); setMsg('◄ START'); });
+  $('#playpause').addEventListener('click',togglePlay);
+  $('#restart').addEventListener('click',()=>{ if(!buffer)return; startAt(0); setMsg('◄ START'); });
   $('#shift').addEventListener('click',e=>{ clearMode=!clearMode; e.currentTarget.classList.toggle('on',clearMode); renderPads(); setMsg(clearMode?'CLEAR MODE':'READY'); });
-  $('#clearall').addEventListener('click',()=>{ pads=Array(16).fill(null); savePads(); renderPads(); setMsg('RESET'); });
-  $('#taplayer').addEventListener('click',()=>{ if(!ready)return; const s=player.getPlayerState(); s===1?player.pauseVideo():player.playVideo(); });
-  document.querySelectorAll('.jbtn').forEach(b=>b.addEventListener('click',()=>{
-    if(!ready)return; const d=+b.dataset.d; let t=Math.max(0,Math.min(dur||1e9,player.getCurrentTime()+d));
-    player.seekTo(t,true); player.playVideo(); setMsg((d>0?'►+':'◄')+Math.abs(d)+'s  '+fmt(t)); }));
-  window.addEventListener('keydown',e=>{ if(e.target.closest('a'))return; const i=KEYS.indexOf(e.key.toLowerCase());
-    if(i>=0){ e.preventDefault(); hitPad(i); } if(e.key===' '){ e.preventDefault(); $('#playpause').click(); } });
-  // ---- storico sessione ----
+  $('#clearall').addEventListener('click',()=>{ pads=Array(16).fill(null); savePads(); renderPads(); drawWave(); setMsg('RESET'); });
+  $('#scwave').addEventListener('click',e=>{ if(!buffer)return; const r=wave.getBoundingClientRect(); const f=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)); startAt(f*curDur); setMsg('► '+fmt(f*curDur)); });
+  document.querySelectorAll('.jbtn').forEach(b=>b.addEventListener('click',()=>{ if(!buffer)return; const d=+b.dataset.d; const t=Math.max(0,Math.min(curDur,curTime()+d)); startAt(t); setMsg((d>0?'►+':'◄')+Math.abs(d)+'s  '+fmt(t)); }));
+  window.addEventListener('keydown',e=>{ if(e.target.closest('a'))return; const i=KEYS.indexOf(e.key.toLowerCase()); if(i>=0){ e.preventDefault(); hitPad(i); } if(e.key===' '){ e.preventDefault(); togglePlay(); } });
+
+  /* ===== storico ===== */
   function decodeE(s){ const t=document.createElement('textarea'); t.innerHTML=s||''; return t.value; }
-  function renderHistory(){ const list=$('#hplist'); if(!list) return;
-    if(!history.length){ list.innerHTML='<div class="hpempty">No samples yet — hit RANDOM</div>'; return; }
+  function renderHistory(){ const list=$('#hplist'); if(!list)return; if(!history.length){ list.innerHTML='<div class="hpempty">No samples yet — hit RANDOM</div>'; return; }
     list.innerHTML=history.map((h,i)=>`<div class="hitem" data-i="${i}"><span class="n">${String(i+1).padStart(2,'0')}</span><span class="tt">${decodeE(h.t)}</span></div>`).join('');
     list.querySelectorAll('.hitem').forEach(el=>el.addEventListener('click',()=>{ const h=history[+el.dataset.i]; playTrack({id:h.id,t:h.t}); $('#histpanel').classList.remove('open'); })); }
   $('#histBtn').addEventListener('click',()=>{ renderHistory(); $('#histpanel').classList.toggle('open'); });
   $('#histClose').addEventListener('click',()=>$('#histpanel').classList.remove('open'));
   $('#histClear').addEventListener('click',()=>{ history=[]; localStorage.removeItem('umdb_history'); renderHistory(); toast('History cleared'); });
 
-  // ---- toast ----
+  /* ===== toast / share / sub / report ===== */
   function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
-  // ---- condividi ----
   $('#shareBtn').addEventListener('click',async()=>{ const url='https://sampler.francescopavani.it';
     const data={title:'UMDB Sample Roulette', text:'Random sample roulette for beatmakers 🎛️', url};
-    try{ if(navigator.share){ await navigator.share(data); toast('Shared ✓'); }
-      else { await navigator.clipboard.writeText(url); toast('Link copied ✓'); } }
+    try{ if(navigator.share){ await navigator.share(data); toast('Shared ✓'); } else { await navigator.clipboard.writeText(url); toast('Link copied ✓'); } }
     catch(e){ try{ await navigator.clipboard.writeText(url); toast('Link copied ✓'); }catch(_){ toast(url); } } });
-
-  // ---- banner iscriviti (ogni 8 roll) ----
   let rollCount=0, subTimer=null;
-  function bumpSub(){ rollCount++; if(rollCount%8===0){ const b=$('#subbanner'); b.classList.add('show');
-    clearTimeout(subTimer); subTimer=setTimeout(()=>b.classList.remove('show'),7000); } }
+  function bumpSub(){ rollCount++; if(rollCount%8===0){ const b=$('#subbanner'); b.classList.add('show'); clearTimeout(subTimer); subTimer=setTimeout(()=>b.classList.remove('show'),7000); } }
   $('#subX').addEventListener('click',()=>$('#subbanner').classList.remove('show'));
-
-  // ---- report "not music": blocca localmente + accoda per la pulizia del pool ----
-  function reportTrack(){ if(!curTrack) return;
-    blocked.add(curTrack.id); localStorage.setItem('umdb_block',JSON.stringify([...blocked].slice(-3000)));
-    let reps=JSON.parse(localStorage.getItem('umdb_reports')||'[]');
-    reps.push({id:curTrack.id, t:curTrack.t||'', at:Date.now()}); localStorage.setItem('umdb_reports',JSON.stringify(reps.slice(-500)));
-    POOL=POOL.filter(v=>v.id!==curTrack.id);
-    setMsg('⚑ REPORTED — skipping'); setTimeout(rollRandom,450); }
+  function reportTrack(){ if(!curTrack)return; blocked.add(curTrack.id); localStorage.setItem('umdb_block',JSON.stringify([...blocked].slice(-3000)));
+    let reps=JSON.parse(localStorage.getItem('umdb_reports')||'[]'); reps.push({id:curTrack.id,t:curTrack.t||'',at:Date.now()}); localStorage.setItem('umdb_reports',JSON.stringify(reps.slice(-500)));
+    POOL=POOL.filter(v=>v.id!==curTrack.id); stopSrc(); playing=false; setPlay(); setMsg('⚑ REPORTED — skipping'); setTimeout(rollRandom,400); }
   $('#reportBtn').addEventListener('click',reportTrack);
 
-  renderHistory();
-  renderPads();
-  const tag=document.createElement('script'); tag.src="https://www.youtube.com/iframe_api"; document.head.appendChild(tag);
+  /* ===== init ===== */
+  window.addEventListener('resize',()=>{ sizeWave(); if(peaks)drawWave(); });
+  window.addEventListener('load',()=>{ sizeWave(); });
+  sizeWave(); renderHistory(); renderPads(); requestAnimationFrame(tick);
 </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 // UMDB Sample Roulette — service worker
-const CACHE = 'umdb-sampler-v1';
+const CACHE = 'umdb-sampler-v2';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './assets/logo.svg', './assets/desk.png',
@@ -16,12 +16,14 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
+  // audio /a/<id> → mai cache del SW (grande, gestito da browser/server), passa sempre in rete
+  if (url.pathname.startsWith('/a/')) return;
   // videos.json → network-first (pool sempre fresco), fallback cache
   if (url.pathname.endsWith('videos.json')) {
     e.respondWith(fetch(e.request).then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); return r; }).catch(() => caches.match(e.request)));
     return;
   }
-  // YouTube/altro cross-origin → passa
+  // cross-origin (thumbnail YouTube ecc.) → passa
   if (url.origin !== location.origin) return;
   // app shell → cache-first
   e.respondWith(caches.match(e.request).then(c => c || fetch(e.request)));
