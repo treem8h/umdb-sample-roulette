@@ -37,12 +37,14 @@
     padding:clamp(12px,3vh,70px) clamp(10px,3vw,44px); position:relative; overflow-x:hidden;
   }
 
-  /* banda arancione in alto disegnata dall'app — SOLO da PWA installata (sotto = fullscreen dal manifest) */
+  /* ===== DA PWA INSTALLATA: il telefono DIVENTA il device ===== */
+  /* niente chassis/ombra/bordi/banda → edge-to-edge immersivo. Sul SITO (browser) resta tutto com'è. */
   .topband{display:none}
   @media (display-mode: standalone), (display-mode: fullscreen){
-    .topband{display:block; position:fixed; top:0; left:0; right:0; z-index:60; pointer-events:none;
-      height:calc(env(safe-area-inset-top, 0px) + 22px); background:linear-gradient(180deg,var(--accent),var(--accent-lo))}
-    body{ padding-top:calc(env(safe-area-inset-top, 0px) + 32px) }
+    body{ padding:0; margin:0; background:var(--shell); min-height:100dvh; display:block; }
+    .unit{ max-width:none; width:100%; margin:0; min-height:100dvh; border:0; border-radius:0; box-shadow:none;
+      padding:calc(env(safe-area-inset-top,0px) + 14px) calc(env(safe-area-inset-right,0px) + 16px)
+              calc(env(safe-area-inset-bottom,0px) + 18px) calc(env(safe-area-inset-left,0px) + 16px); }
   }
 
   /* ===== LOADER minimal ===== */
@@ -302,7 +304,6 @@
 </style>
 </head>
 <body>
-  <div class="topband" aria-hidden="true"></div>
   <!-- LOADER minimal -->
   <div id="boot">
     <img src="assets/logo.svg" alt="Un Miliardo di Beats">
@@ -422,7 +423,7 @@
   // loader: sparisce dopo un attimo
   window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('boot').classList.add('off'),1600); });
   // registra il service worker (PWA installabile)
-  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=7').catch(()=>{})); }
+  if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=8').catch(()=>{})); }
 
   const AUDIO='/a/';                    // stesso dominio: sampler.francescopavani.it/a/<id>
   const $=s=>document.querySelector(s);
