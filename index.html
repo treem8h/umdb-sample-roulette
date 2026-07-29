@@ -468,7 +468,6 @@
   let ac=null, gain=null, buffer=null, srcNode=null, srcGen=0, startedAt=0, offset=0, playing=false, curDur=0, loadTok=0, loadingActive=false, loadPhase=0;
   let rate=1; const RMIN=0.5, RMAX=1.5;   // varispeed: pitch+tempo insieme (come un giradischi/MPC)
   let loopIn=null, loopOut=null, loopOn=false;   // loop IN/OUT
-  let latShown=false;   // diagnostica latenza (una volta)
   function ensureAC(){ if(!ac){ ac=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'}); gain=ac.createGain(); gain.connect(ac.destination); }
     if(ac.state==='suspended') ac.resume(); return ac; }
   // FIX BUG "manda in fondo": azzero onended PRIMA di stop → l'evento ritardato non sovrascrive più lo stato
@@ -502,7 +501,6 @@
       const ab=await res.arrayBuffer(); if(tok!==loadTok) return;
       buffer=await ac.decodeAudioData(ab); if(tok!==loadTok) return;
       curDur=buffer.duration; computePeaks(); loadingActive=false; showFlag(true); setMsg('READY'); startAt(0);
-      if(!latShown && ac){ latShown=true; const bl=Math.round((ac.baseLatency||0)*1000), ol=Math.round((ac.outputLatency||0)*1000); setTimeout(()=>toast('latenza audio ~'+(bl+ol)+'ms  (base '+bl+' + out '+ol+')'),600); }
       const b=buffer; setTimeout(()=>{ if(b!==buffer)return; try{ const k=analyzeKey(b); if(b!==buffer)return; const kb=$('#keybadge'); if(kb){ kb.textContent=k; kb.classList.add('show'); } }catch(_){} }, 250);  // stima tonalità (non blocca il play)
     }catch(e){ if(tok!==loadTok) return; loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); }
   }
