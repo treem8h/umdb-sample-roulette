@@ -668,8 +668,12 @@
   $('#editpad').addEventListener('click',toggleEdit);
   document.querySelectorAll('.nbtn').forEach(b=>b.addEventListener('click',()=>nudge(+b.dataset.n)));
   // ---- LOOP IN/OUT ----
-  $('#loopIn').addEventListener('click',()=>{ if(!buffer)return; loopIn=curTime(); if(loopOut!=null&&loopOut<=loopIn)loopOut=null; drawWave(); setMsg('IN '+fmt(loopIn)); });
-  $('#loopOut').addEventListener('click',()=>{ if(!buffer)return; const t=curTime(); if(loopIn==null){ setMsg('set IN first'); return; } if(t<=loopIn){ setMsg('OUT after IN'); return; } loopOut=t; drawWave(); setMsg('OUT '+fmt(loopOut)); });
+  // aggiorna i bordi del loop LIVE se sta ciclando (native: feeder li rilegge; web: aggiorna il nodo)
+  function updateLiveLoop(){ if(!loopOn||loopIn==null||loopOut==null||loopOut<=loopIn)return;
+    if(NATIVE){ try{ NativeAudio.setLoop(true,loopIn,loopOut); }catch(_){} }
+    else if(srcNode){ try{ srcNode.loopStart=loopIn; srcNode.loopEnd=loopOut; }catch(_){} } }
+  $('#loopIn').addEventListener('click',()=>{ if(!buffer)return; loopIn=curTime(); if(loopOut!=null&&loopOut<=loopIn)loopOut=null; drawWave(); setMsg('IN '+fmt(loopIn)); if(loopOn&&loopOut!=null&&loopOut>loopIn)updateLiveLoop(); });
+  $('#loopOut').addEventListener('click',()=>{ if(!buffer)return; const t=curTime(); if(loopIn==null){ setMsg('set IN first'); return; } if(t<=loopIn){ setMsg('OUT after IN'); return; } loopOut=t; drawWave(); setMsg('OUT '+fmt(loopOut)); if(loopOn)updateLiveLoop(); });
   $('#loopTog').addEventListener('click',e=>{ if(loopIn==null||loopOut==null){ setMsg('set IN & OUT'); return; }
     const pos=curTime(); loopOn=!loopOn; e.currentTarget.classList.toggle('on',loopOn);
     if(loopOn){ startAt(loopIn); setMsg('LOOP ON'); } else { startAt(pos); setMsg('LOOP OFF'); } });
