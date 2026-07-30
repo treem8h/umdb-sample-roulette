@@ -141,7 +141,11 @@
   .sc-player.collapsed .sc-thumb{display:none}
 
   .novid{position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center;
-    color:var(--lcd-dim); font-family:"Courier New",monospace; font-size:.82rem; letter-spacing:.15em; text-align:center; padding:18px; background:var(--lcd-bg)}
+    color:var(--lcd-dim); font-family:"Courier New",monospace; font-size:.82rem; letter-spacing:.15em; text-align:center; padding:18px; background:var(--lcd-bg); overflow:hidden}
+  /* logo GIGANTE verde in filigrana, solo sul monitor d'apertura */
+  .novid::before{content:""; position:absolute; inset:-25%; z-index:0; pointer-events:none; opacity:.13; background:var(--lcd);
+    -webkit-mask:url("assets/logo.svg") center 50% / 300% auto no-repeat; mask:url("assets/logo.svg") center 50% / 300% auto no-repeat;}
+  .novid > span{position:relative; z-index:1}
   .novid .big{color:var(--lcd); font-size:1rem; letter-spacing:.25em; text-shadow:0 0 10px var(--lcd-glow)}
 
   .lcd{font-family:"Courier New",monospace; color:var(--lcd); background:var(--lcd-bg);
@@ -466,7 +470,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-07-30 · b11';   // marker build UI (server)
+  const UIB='2026-07-30 · b12';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -721,7 +725,8 @@
 
   /* ===== toast / share / sub / report ===== */
   function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
-  $('#shareBtn').addEventListener('click',async()=>{ const url='https://sampler.francescopavani.it';
+  $('#shareBtn').addEventListener('click',async()=>{ const url='https://sampler.francescopavani.it'; const txt='Random sample roulette for beatmakers 🎛️ '+url;
+    if(NATIVE && window.Android && window.Android.share){ try{ window.Android.share(txt); return; }catch(_){} }   // menu share nativo Android
     const data={title:'UMDB Sample Roulette', text:'Random sample roulette for beatmakers 🎛️', url};
     try{ if(navigator.share){ await navigator.share(data); toast('Shared ✓'); } else { await navigator.clipboard.writeText(url); toast('Link copied ✓'); } }
     catch(e){ try{ await navigator.clipboard.writeText(url); toast('Link copied ✓'); }catch(_){ toast(url); } } });
@@ -761,7 +766,7 @@
     if(NATIVE){ let av='?'; try{ if(NativeAudio.appVersion) av=NativeAudio.appVersion(); }catch(_){} s='APP v'+av+' · UI '+UIB; }
     e.textContent=s; })();
   // feedback aptico leggero sui tasti (solo app nativa)
-  if(NATIVE && window.Haptic){ document.addEventListener('pointerdown',ev=>{ if(ev.target.closest('.pad,.key,.jbtn,.lpb,.nbtn,.tbtn,.wave-collapse,.dial')){ try{Haptic.tick();}catch(_){} } },{passive:true}); }
+  if(NATIVE){ const H=window.Android||window.Haptic; if(H&&H.tick){ document.addEventListener('pointerdown',ev=>{ if(ev.target.closest('.pad,.key,.jbtn,.lpb,.nbtn,.tbtn,.wave-collapse,.dial')){ try{H.tick();}catch(_){} } },{passive:true}); } }
 </script>
 </body>
 </html>
