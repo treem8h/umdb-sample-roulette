@@ -339,18 +339,9 @@
   .nativeapp .social{ margin-top:8px; padding-top:8px; }
   .nativeapp .disclaimer{ margin-top:6px; }
   .nativeapp .console, .nativeapp .bigrow, .nativeapp .editrow{ margin-top:8px!important; }
-  .nativeapp .group.nav{ margin-top:14px!important; }     /* jog staccato dai pulsanti sopra */
-  /* --- app: jog collassabile per compattare (i tips/social/disclaimer restano) --- */
+  /* app: niente jog dei secondi (si scrubba trascinando la waveform) → via anche l'accordion */
   .jogtog{ display:none; }
-  .nativeapp #navgroup{ background:transparent!important; padding:0!important; }   /* niente riquadro arancione da chiuso */
-  .nativeapp #navgroup.open{ background:var(--accent)!important; padding:8px!important; }
-  .nativeapp .jogtog{ display:block; width:100%; appearance:none; cursor:pointer; border:1px solid rgba(255,255,255,.07); border-radius:8px;
-    background:rgba(255,255,255,.045); color:#8f8f8f; font:700 10px/1 var(--mono,inherit); letter-spacing:.16em;
-    padding:7px 8px; text-transform:uppercase; }
-  .nativeapp #navgroup .jog{ display:none; margin-top:0; }        /* jog chiuso di default nell'app */
-  .nativeapp #navgroup.open .jogtog{ margin-bottom:8px; background:rgba(0,0,0,.22); color:#0d0d0d; border-color:transparent; }
-  .nativeapp #navgroup.open .jog{ display:grid; }
-  .nativeapp .padplate{ margin-top:14px!important; }       /* pad staccati dal jog */
+  .nativeapp .group.nav{ display:none!important; }
 </style>
 </head>
 <body>
@@ -488,7 +479,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-07-30 · b19';   // marker build UI (server)
+  const UIB='2026-07-30 · b20';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
