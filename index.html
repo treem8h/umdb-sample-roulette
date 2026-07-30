@@ -143,8 +143,8 @@
   .novid{position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center;
     color:var(--lcd-dim); font-family:"Courier New",monospace; font-size:.82rem; letter-spacing:.15em; text-align:center; padding:18px; background:var(--lcd-bg); overflow:hidden}
   /* logo GIGANTE verde in filigrana, solo sul monitor d'apertura */
-  .novid::before{content:""; position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.10; background:var(--lcd);
-    -webkit-mask:url("assets/logo.svg") center 64% / 178% auto no-repeat; mask:url("assets/logo.svg") center 64% / 178% auto no-repeat;}
+  .novid::before{content:""; position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.065; background:var(--lcd);
+    -webkit-mask:url("assets/logo.svg") center 78% / 178% auto no-repeat; mask:url("assets/logo.svg") center 78% / 178% auto no-repeat;}
   .novid > span{position:relative; z-index:1}
   .novid .big{color:var(--lcd); font-size:1rem; letter-spacing:.25em; text-shadow:0 0 10px var(--lcd-glow)}
 
@@ -336,21 +336,20 @@
   .nativeapp img, .nativeapp a{ -webkit-user-drag:none; }
   /* app compatta: meno scroll → si vede waveform + pad insieme, e il gesto multitasking non scrolla */
   html, body{ overscroll-behavior:none; }
-  .nativeapp .tips{ display:none; }
   .nativeapp .social{ margin-top:8px; padding-top:8px; }
   .nativeapp .disclaimer{ margin-top:6px; }
   .nativeapp .console, .nativeapp .bigrow, .nativeapp .editrow{ margin-top:8px!important; }
   .nativeapp .group.nav{ margin-top:14px!important; }     /* jog staccato dai pulsanti sopra */
-  /* --- app: compattazione per far stare tutto in una schermata (niente scroll → il gesto multitasking non trascina l'app) --- */
+  /* --- app: jog collassabile per compattare (i tips/social/disclaimer restano) --- */
   .jogtog{ display:none; }
-  .nativeapp .jogtog{ display:block; width:100%; appearance:none; cursor:pointer; border:0; border-radius:7px;
-    background:rgba(0,0,0,.22); color:#0d0d0d; font:700 11px/1 var(--mono,inherit); letter-spacing:.14em;
-    padding:9px 8px; text-transform:uppercase; }
+  .nativeapp #navgroup{ background:transparent!important; padding:0!important; }   /* niente riquadro arancione da chiuso */
+  .nativeapp #navgroup.open{ background:var(--accent)!important; padding:8px!important; }
+  .nativeapp .jogtog{ display:block; width:100%; appearance:none; cursor:pointer; border:1px solid rgba(255,255,255,.07); border-radius:8px;
+    background:rgba(255,255,255,.045); color:#8f8f8f; font:700 10px/1 var(--mono,inherit); letter-spacing:.16em;
+    padding:7px 8px; text-transform:uppercase; }
   .nativeapp #navgroup .jog{ display:none; margin-top:0; }        /* jog chiuso di default nell'app */
-  .nativeapp #navgroup.open .jogtog{ margin-bottom:8px; }
+  .nativeapp #navgroup.open .jogtog{ margin-bottom:8px; background:rgba(0,0,0,.22); color:#0d0d0d; border-color:transparent; }
   .nativeapp #navgroup.open .jog{ display:grid; }
-  .nativeapp .social{ display:none; }        /* link social non servono dentro l'app */
-  .nativeapp .disclaimer{ display:none; }     /* disclaimer legale sta sul sito, non serve occupare spazio nell'app */
   .nativeapp .padplate{ margin-top:14px!important; }       /* pad staccati dal jog */
 </style>
 </head>
@@ -489,7 +488,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-07-30 · b18';   // marker build UI (server)
+  const UIB='2026-07-30 · b19';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -792,6 +791,8 @@
     e.textContent=s; })();
   // feedback aptico leggero sui tasti (solo app nativa)
   if(NATIVE){ const H=window.Android||window.Haptic; if(H&&H.tick){ document.addEventListener('pointerdown',ev=>{ if(ev.target.closest('.pad,.key,.jbtn,.lpb,.nbtn,.tbtn,.wave-collapse,.dial')){ try{H.tick();}catch(_){} } },{passive:true}); } }
+  // zona gesto: gli ultimi 50px in basso NON scrollano l'app (così il gesto multitasking non la trascina). I tap restano validi.
+  if(NATIVE){ let eg=false; addEventListener('touchstart',e=>{ eg=(e.touches[0].clientY > (window.innerHeight-50)); },{passive:true}); addEventListener('touchmove',e=>{ if(eg) e.preventDefault(); },{passive:false}); }
 </script>
 </body>
 </html>
