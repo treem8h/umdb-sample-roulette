@@ -326,6 +326,9 @@
   .nativeapp .unit{ max-width:none!important; width:100%; margin:0; min-height:100dvh; border:0; border-radius:0; box-shadow:none;
     padding:calc(env(safe-area-inset-top,0px) + 16px) clamp(14px,4vw,20px)
             calc(env(safe-area-inset-bottom,0px) + 22px) clamp(14px,4vw,20px)!important; }
+  /* feeling da APP VERA: niente selezione testo / highlight al tap / menu long-press (solo nell'app) */
+  .nativeapp, .nativeapp *{ -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:rgba(0,0,0,0); -webkit-touch-callout:none; }
+  .nativeapp img, .nativeapp a{ -webkit-user-drag:none; }
 </style>
 </head>
 <body>
@@ -462,7 +465,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-07-30 · b8';   // marker build UI (server)
+  const UIB='2026-07-30 · b9';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
