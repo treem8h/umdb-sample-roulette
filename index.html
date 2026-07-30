@@ -341,6 +341,16 @@
   .nativeapp .disclaimer{ margin-top:6px; }
   .nativeapp .console, .nativeapp .bigrow, .nativeapp .editrow{ margin-top:8px!important; }
   .nativeapp .group.nav{ margin-top:14px!important; }     /* jog staccato dai pulsanti sopra */
+  /* --- app: compattazione per far stare tutto in una schermata (niente scroll → il gesto multitasking non trascina l'app) --- */
+  .jogtog{ display:none; }
+  .nativeapp .jogtog{ display:block; width:100%; appearance:none; cursor:pointer; border:0; border-radius:7px;
+    background:rgba(0,0,0,.22); color:#0d0d0d; font:700 11px/1 var(--mono,inherit); letter-spacing:.14em;
+    padding:9px 8px; text-transform:uppercase; }
+  .nativeapp #navgroup .jog{ display:none; margin-top:0; }        /* jog chiuso di default nell'app */
+  .nativeapp #navgroup.open .jogtog{ margin-bottom:8px; }
+  .nativeapp #navgroup.open .jog{ display:grid; }
+  .nativeapp .social{ display:none; }        /* link social non servono dentro l'app */
+  .nativeapp .disclaimer{ display:none; }     /* disclaimer legale sta sul sito, non serve occupare spazio nell'app */
   .nativeapp .padplate{ margin-top:14px!important; }       /* pad staccati dal jog */
 </style>
 </head>
@@ -414,7 +424,8 @@
       </div>
     </div>
 
-    <div class="group nav">
+    <div class="group nav" id="navgroup">
+      <button class="jogtog" id="jogtog" type="button">JOG · nudge ▾</button>
       <div class="jog">
         <button class="jbtn back" data-d="-10"><small>►</small>10</button>
         <button class="jbtn back" data-d="-5"><small>►</small>5</button>
@@ -478,7 +489,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-07-30 · b17';   // marker build UI (server)
+  const UIB='2026-07-30 · b18';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -540,18 +551,23 @@
     if($('#loopTog'))$('#loopTog').classList.remove('on'); const kb0=$('#keybadge'); if(kb0){ kb0.textContent='–'; kb0.classList.remove('show'); } updateNudgeInfo();
     $('#thumb').href='https://youtu.be/'+id;
     $('#thumbImg').src='https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
-    if(NATIVE){ try{ NativeAudio.load(new URL(AUDIO+id, location.href).href); }catch(_){} }   // decode+prepara nativo
+    // NATIVE: un solo decode (il nativo). Niente fetch/decode JS → meno CPU (no gracchio), meno rete, EXTRACTING più corto.
+    if(NATIVE){ try{ NativeAudio.load(new URL(AUDIO+id, location.href).href); }catch(_){ } return; }   // tutto il resto via __nativeReady
     try{
       ensureAC();
       const res=await fetch(AUDIO+id); if(!res.ok) throw 0;
       const ab=await res.arrayBuffer(); if(tok!==loadTok) return;
       buffer=await ac.decodeAudioData(ab); if(tok!==loadTok) return;
-      curDur=buffer.duration; computePeaks(); showFlag(true);
-      if(NATIVE){ drawWave(); nativeMaybeStart(); } else { loadingActive=false; setMsg('READY'); startAt(0); }
+      curDur=buffer.duration; computePeaks(); loadingActive=false; showFlag(true); setMsg('READY'); startAt(0);
       const b=buffer; setTimeout(()=>{ if(b!==buffer)return; try{ const k=analyzeKey(b); if(b!==buffer)return; const kb=$('#keybadge'); if(kb){ kb.textContent=k; kb.classList.add('show'); } }catch(_){} }, 700);  // stima tonalità
-    }catch(e){ if(tok!==loadTok) return; if(!NATIVE){ loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); } }
+    }catch(e){ if(tok!==loadTok) return; loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); }
   }
-  window.__nativeReady=function(dur,srate){ nativeReady=true; if(dur&&!curDur)curDur=dur; nativeMaybeStart(); };
+  // nativo pronto: prendo i picchi già calcolati dal motore (niente decode JS) e parto subito
+  window.__nativeReady=function(dur,srate){ nativeReady=true; curDur=dur||0;
+    try{ const ps=NativeAudio.peaks(); if(ps){ const a=ps.split(','); const pk=new Float32Array(a.length); for(let i=0;i<a.length;i++)pk[i]=+a[i]; peaks=pk; } }catch(_){ }
+    buffer={native:true};   // sentinella "caricato" (in nativo l'AudioBuffer JS non serve)
+    loadingActive=false; showFlag(true); setMsg('READY'); drawWave(); startAt(0);
+  };
   window.__nativeEnded=function(){ playing=false; setPlay(); paint(); };
   window.__nativeError=function(){ nativeReady=false; loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); };
   function showFlag(b){ const f=$('#reportBtn'); if(f) f.classList.toggle('on',!!b); const a=$('#waveCollapse'); if(a) a.classList.toggle('on',!!b); }
@@ -698,6 +714,7 @@
     const pos=curTime(); loopOn=!loopOn; e.currentTarget.classList.toggle('on',loopOn);
     if(loopOn){ startAt(loopIn); setMsg('LOOP ON'); } else { startAt(pos); setMsg('LOOP OFF'); } });
   document.querySelectorAll('.jbtn').forEach(b=>b.addEventListener('pointerdown',()=>{ if(!buffer)return; const d=+b.dataset.d; const t=Math.max(0,Math.min(curDur,curTime()+d)); startAt(t); setMsg((d>0?'►+':'◄')+Math.abs(d)+'s  '+fmt(t)); }));
+  { const jt=$('#jogtog'); if(jt) jt.addEventListener('pointerdown',e=>{ e.preventDefault(); const g=$('#navgroup'); const op=g.classList.toggle('open'); jt.textContent='JOG · nudge '+(op?'▴':'▾'); }); }
   window.addEventListener('keydown',e=>{ if(e.target.closest('a'))return; const i=KEYS.indexOf(e.key.toLowerCase()); if(i>=0){ e.preventDefault(); hitPad(i); } if(e.key===' '){ e.preventDefault(); togglePlay(); } });
 
   /* ===== WAVEFORM: tap=seek · drag=pan (se zoom) · pinch/rotellina=zoom · doppio tap=reset ===== */
