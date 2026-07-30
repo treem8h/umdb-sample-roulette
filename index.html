@@ -144,7 +144,7 @@
     color:var(--lcd-dim); font-family:"Courier New",monospace; font-size:.82rem; letter-spacing:.15em; text-align:center; padding:18px; background:var(--lcd-bg); overflow:hidden}
   /* logo GIGANTE verde in filigrana, solo sul monitor d'apertura */
   .novid::before{content:""; position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.065; background:var(--lcd);
-    -webkit-mask:url("assets/logo.svg") center 50% / 178% auto no-repeat; mask:url("assets/logo.svg") center 50% / 178% auto no-repeat;}
+    -webkit-mask:url("assets/logo.svg") center 46% / 178% auto no-repeat; mask:url("assets/logo.svg") center 46% / 178% auto no-repeat;}
   .novid > span{position:relative; z-index:1}
   .novid .big{color:var(--lcd); font-size:1rem; letter-spacing:.25em; text-shadow:0 0 10px var(--lcd-glow)}
 
@@ -479,7 +479,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-07-30 · b21';   // marker build UI (server)
+  const UIB='2026-07-30 · b22';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
