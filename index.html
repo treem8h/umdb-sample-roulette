@@ -334,6 +334,12 @@
   /* feeling da APP VERA: niente selezione testo / highlight al tap / menu long-press (solo nell'app) */
   .nativeapp, .nativeapp *{ -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:rgba(0,0,0,0); -webkit-touch-callout:none; }
   .nativeapp img, .nativeapp a{ -webkit-user-drag:none; }
+  /* app compatta: meno scroll → si vede waveform + pad insieme, e il gesto multitasking non scrolla */
+  html, body{ overscroll-behavior:none; }
+  .nativeapp .tips{ display:none; }
+  .nativeapp .social{ margin-top:8px; padding-top:8px; }
+  .nativeapp .disclaimer{ margin-top:6px; }
+  .nativeapp .console, .nativeapp .bigrow, .nativeapp .group.nav, .nativeapp .editrow, .nativeapp .padplate{ margin-top:8px!important; }
 </style>
 </head>
 <body>
@@ -421,7 +427,9 @@
       </div>
     </div>
 
-    <!-- EDIT PAD in riga con Clear/Reset ma fuori dall'azzurro -->
+    <div class="padplate"><div class="pads" id="pads"></div></div>
+
+    <!-- Clear/Reset/Edit + nudge SOTTO i pad → pad più in alto, visibili insieme alla waveform -->
     <div class="editrow">
       <div class="group clean">
         <div class="cleanrow">
@@ -440,8 +448,6 @@
         <button class="nbtn" data-n="0.1">+0.1</button>
       </div>
     </div>
-
-    <div class="padplate"><div class="pads" id="pads"></div></div>
 
     <div class="tips">
       <div class="tip"><span class="ico">◉</span><span><b>Empty pad</b> saves the spot · <b>lit pad</b> jumps to it (instant cue)</span></div>
@@ -470,7 +476,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-07-30 · b15';   // marker build UI (server)
+  const UIB='2026-07-30 · b16';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
