@@ -466,7 +466,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-07-30 · b10';   // marker build UI (server)
+  const UIB='2026-07-30 · b11';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -760,6 +760,8 @@
   (function(){ const e=$('#ver'); if(!e)return; let s='UI '+UIB+' · web';
     if(NATIVE){ let av='?'; try{ if(NativeAudio.appVersion) av=NativeAudio.appVersion(); }catch(_){} s='APP v'+av+' · UI '+UIB; }
     e.textContent=s; })();
+  // feedback aptico leggero sui tasti (solo app nativa)
+  if(NATIVE && window.Haptic){ document.addEventListener('pointerdown',ev=>{ if(ev.target.closest('.pad,.key,.jbtn,.lpb,.nbtn,.tbtn,.wave-collapse,.dial')){ try{Haptic.tick();}catch(_){} } },{passive:true}); }
 </script>
 </body>
 </html>
