@@ -143,8 +143,8 @@
   .novid{position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center;
     color:var(--lcd-dim); font-family:"Courier New",monospace; font-size:.82rem; letter-spacing:.15em; text-align:center; padding:18px; background:var(--lcd-bg); overflow:hidden}
   /* logo GIGANTE verde in filigrana, solo sul monitor d'apertura */
-  .novid::before{content:""; position:absolute; inset:10% 8%; z-index:0; pointer-events:none; opacity:.14; background:var(--lcd);
-    -webkit-mask:url("assets/logo.svg") center / contain no-repeat; mask:url("assets/logo.svg") center / contain no-repeat;}
+  .novid::before{content:""; position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.14; background:var(--lcd);
+    -webkit-mask:url("assets/logo.svg") center / 155% auto no-repeat; mask:url("assets/logo.svg") center / 155% auto no-repeat;}
   .novid > span{position:relative; z-index:1}
   .novid .big{color:var(--lcd); font-size:1rem; letter-spacing:.25em; text-shadow:0 0 10px var(--lcd-glow)}
 
@@ -470,7 +470,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-07-30 · b14';   // marker build UI (server)
+  const UIB='2026-07-30 · b15';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -540,7 +540,7 @@
       buffer=await ac.decodeAudioData(ab); if(tok!==loadTok) return;
       curDur=buffer.duration; computePeaks(); showFlag(true);
       if(NATIVE){ drawWave(); nativeMaybeStart(); } else { loadingActive=false; setMsg('READY'); startAt(0); }
-      const b=buffer; setTimeout(()=>{ if(b!==buffer)return; try{ const k=analyzeKey(b); if(b!==buffer)return; const kb=$('#keybadge'); if(kb){ kb.textContent=k; kb.classList.add('show'); } }catch(_){} }, 250);  // stima tonalità
+      const b=buffer; setTimeout(()=>{ if(b!==buffer)return; try{ const k=analyzeKey(b); if(b!==buffer)return; const kb=$('#keybadge'); if(kb){ kb.textContent=k; kb.classList.add('show'); } }catch(_){} }, 700);  // stima tonalità
     }catch(e){ if(tok!==loadTok) return; if(!NATIVE){ loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); } }
   }
   window.__nativeReady=function(dur,srate){ nativeReady=true; if(dur&&!curDur)curDur=dur; nativeMaybeStart(); };
@@ -672,24 +672,24 @@
   function playTrack(v){ ensureAC(); curTrack=v; novid.style.display='none'; loadPadsFor(v.id); setMsg('◉ '+(v.t||v.id).slice(0,22)); loadAudio(v.id); }
 
   /* ===== controlli ===== */
-  $('#random').addEventListener('click',e=>{ const b=e.currentTarget; b.classList.remove('blink'); void b.offsetWidth; b.classList.add('blink'); rollRandom(); });
-  $('#playpause').addEventListener('click',togglePlay);
-  $('#restart').addEventListener('click',()=>{ if(!buffer)return; startAt(0); setMsg('◄ START'); });
-  $('#shift').addEventListener('click',e=>{ clearMode=!clearMode; e.currentTarget.classList.toggle('on',clearMode); renderPads(); setMsg(clearMode?'CLEAR MODE':'READY'); });
-  $('#clearall').addEventListener('click',()=>{ pads=Array(16).fill(null); selPad=-1; savePads(); renderPads(); drawWave(); updateNudgeInfo(); setMsg('RESET'); });
-  $('#editpad').addEventListener('click',toggleEdit);
-  document.querySelectorAll('.nbtn').forEach(b=>b.addEventListener('click',()=>nudge(+b.dataset.n)));
+  $('#random').addEventListener('pointerdown',e=>{ const b=e.currentTarget; b.classList.remove('blink'); void b.offsetWidth; b.classList.add('blink'); rollRandom(); });
+  $('#playpause').addEventListener('pointerdown',togglePlay);
+  $('#restart').addEventListener('pointerdown',()=>{ if(!buffer)return; startAt(0); setMsg('◄ START'); });
+  $('#shift').addEventListener('pointerdown',e=>{ clearMode=!clearMode; e.currentTarget.classList.toggle('on',clearMode); renderPads(); setMsg(clearMode?'CLEAR MODE':'READY'); });
+  $('#clearall').addEventListener('pointerdown',()=>{ pads=Array(16).fill(null); selPad=-1; savePads(); renderPads(); drawWave(); updateNudgeInfo(); setMsg('RESET'); });
+  $('#editpad').addEventListener('pointerdown',toggleEdit);
+  document.querySelectorAll('.nbtn').forEach(b=>b.addEventListener('pointerdown',()=>nudge(+b.dataset.n)));
   // ---- LOOP IN/OUT ----
   // aggiorna i bordi del loop LIVE se sta ciclando (native: feeder li rilegge; web: aggiorna il nodo)
   function updateLiveLoop(){ if(!loopOn||loopIn==null||loopOut==null||loopOut<=loopIn)return;
     if(NATIVE){ try{ NativeAudio.setLoop(true,loopIn,loopOut); }catch(_){} }
     else if(srcNode){ try{ srcNode.loopStart=loopIn; srcNode.loopEnd=loopOut; }catch(_){} } }
-  $('#loopIn').addEventListener('click',()=>{ if(!buffer)return; loopIn=curTime(); if(loopOut!=null&&loopOut<=loopIn)loopOut=null; drawWave(); setMsg('IN '+fmt(loopIn)); if(loopOn&&loopOut!=null&&loopOut>loopIn)updateLiveLoop(); });
-  $('#loopOut').addEventListener('click',()=>{ if(!buffer)return; const t=curTime(); if(loopIn==null){ setMsg('set IN first'); return; } if(t<=loopIn){ setMsg('OUT after IN'); return; } loopOut=t; drawWave(); setMsg('OUT '+fmt(loopOut)); if(loopOn)updateLiveLoop(); });
-  $('#loopTog').addEventListener('click',e=>{ if(loopIn==null||loopOut==null){ setMsg('set IN & OUT'); return; }
+  $('#loopIn').addEventListener('pointerdown',()=>{ if(!buffer)return; loopIn=curTime(); if(loopOut!=null&&loopOut<=loopIn)loopOut=null; drawWave(); setMsg('IN '+fmt(loopIn)); if(loopOn&&loopOut!=null&&loopOut>loopIn)updateLiveLoop(); });
+  $('#loopOut').addEventListener('pointerdown',()=>{ if(!buffer)return; const t=curTime(); if(loopIn==null){ setMsg('set IN first'); return; } if(t<=loopIn){ setMsg('OUT after IN'); return; } loopOut=t; drawWave(); setMsg('OUT '+fmt(loopOut)); if(loopOn)updateLiveLoop(); });
+  $('#loopTog').addEventListener('pointerdown',e=>{ if(loopIn==null||loopOut==null){ setMsg('set IN & OUT'); return; }
     const pos=curTime(); loopOn=!loopOn; e.currentTarget.classList.toggle('on',loopOn);
     if(loopOn){ startAt(loopIn); setMsg('LOOP ON'); } else { startAt(pos); setMsg('LOOP OFF'); } });
-  document.querySelectorAll('.jbtn').forEach(b=>b.addEventListener('click',()=>{ if(!buffer)return; const d=+b.dataset.d; const t=Math.max(0,Math.min(curDur,curTime()+d)); startAt(t); setMsg((d>0?'►+':'◄')+Math.abs(d)+'s  '+fmt(t)); }));
+  document.querySelectorAll('.jbtn').forEach(b=>b.addEventListener('pointerdown',()=>{ if(!buffer)return; const d=+b.dataset.d; const t=Math.max(0,Math.min(curDur,curTime()+d)); startAt(t); setMsg((d>0?'►+':'◄')+Math.abs(d)+'s  '+fmt(t)); }));
   window.addEventListener('keydown',e=>{ if(e.target.closest('a'))return; const i=KEYS.indexOf(e.key.toLowerCase()); if(i>=0){ e.preventDefault(); hitPad(i); } if(e.key===' '){ e.preventDefault(); togglePlay(); } });
 
   /* ===== WAVEFORM: tap=seek · drag=pan (se zoom) · pinch/rotellina=zoom · doppio tap=reset ===== */
@@ -719,24 +719,24 @@
   function renderHistory(){ const list=$('#hplist'); if(!list)return; if(!history.length){ list.innerHTML='<div class="hpempty">No samples yet — hit RANDOM</div>'; return; }
     list.innerHTML=history.map((h,i)=>`<div class="hitem" data-i="${i}"><span class="n">${String(i+1).padStart(2,'0')}</span><span class="tt">${decodeE(h.t)}</span></div>`).join('');
     list.querySelectorAll('.hitem').forEach(el=>el.addEventListener('click',()=>{ const h=history[+el.dataset.i]; playTrack({id:h.id,t:h.t}); $('#histpanel').classList.remove('open'); })); }
-  $('#histBtn').addEventListener('click',()=>{ renderHistory(); $('#histpanel').classList.toggle('open'); });
-  $('#histClose').addEventListener('click',()=>$('#histpanel').classList.remove('open'));
-  $('#histClear').addEventListener('click',()=>{ history=[]; localStorage.removeItem('umdb_history'); renderHistory(); toast('History cleared'); });
+  $('#histBtn').addEventListener('pointerdown',()=>{ renderHistory(); $('#histpanel').classList.toggle('open'); });
+  $('#histClose').addEventListener('pointerdown',()=>$('#histpanel').classList.remove('open'));
+  $('#histClear').addEventListener('pointerdown',()=>{ history=[]; localStorage.removeItem('umdb_history'); renderHistory(); toast('History cleared'); });
 
   /* ===== toast / share / sub / report ===== */
   function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
-  $('#shareBtn').addEventListener('click',async()=>{ const url='https://sampler.francescopavani.it'; const txt='Random sample roulette for beatmakers 🎛️ '+url;
+  $('#shareBtn').addEventListener('pointerdown',async()=>{ const url='https://sampler.francescopavani.it'; const txt='Random sample roulette for beatmakers 🎛️ '+url;
     if(NATIVE && window.Android && window.Android.share){ try{ window.Android.share(txt); return; }catch(_){} }   // menu share nativo Android
     const data={title:'UMDB Sample Roulette', text:'Random sample roulette for beatmakers 🎛️', url};
     try{ if(navigator.share){ await navigator.share(data); toast('Shared ✓'); } else { await navigator.clipboard.writeText(url); toast('Link copied ✓'); } }
     catch(e){ try{ await navigator.clipboard.writeText(url); toast('Link copied ✓'); }catch(_){ toast(url); } } });
   let rollCount=0, subTimer=null;
   function bumpSub(){ rollCount++; if(rollCount%8===0){ const b=$('#subbanner'); b.classList.add('show'); clearTimeout(subTimer); subTimer=setTimeout(()=>b.classList.remove('show'),7000); } }
-  $('#subX').addEventListener('click',()=>$('#subbanner').classList.remove('show'));
+  $('#subX').addEventListener('pointerdown',()=>$('#subbanner').classList.remove('show'));
   function reportTrack(){ if(!curTrack)return; blocked.add(curTrack.id); localStorage.setItem('umdb_block',JSON.stringify([...blocked].slice(-3000)));
     let reps=JSON.parse(localStorage.getItem('umdb_reports')||'[]'); reps.push({id:curTrack.id,t:curTrack.t||'',at:Date.now()}); localStorage.setItem('umdb_reports',JSON.stringify(reps.slice(-500)));
     POOL=POOL.filter(v=>v.id!==curTrack.id); if(NATIVE){try{NativeAudio.pause();}catch(_){}} stopSrc(); playing=false; setPlay(); setMsg('⚑ REPORTED — skipping'); setTimeout(rollRandom,400); }
-  $('#reportBtn').addEventListener('click',reportTrack);
+  $('#reportBtn').addEventListener('pointerdown',reportTrack);
 
   /* ===== KNOB: drag verticale = valore, doppio clic = default ===== */
   function makeKnob(rootId, cfg){
