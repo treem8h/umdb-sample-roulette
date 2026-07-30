@@ -277,6 +277,8 @@
   /* ===== disclaimer legale ===== */
   .disclaimer{margin:11px 4px 0; font-family:"PANEL",sans-serif; font-weight:500; font-size:.6rem; line-height:1.45;
     color:var(--txt-dim); text-align:center; letter-spacing:.02em; opacity:.85}
+  .ver{margin:6px 4px 0; font-family:"Courier New",monospace; font-size:.58rem; letter-spacing:.06em;
+    color:var(--txt-dim); text-align:center; opacity:.7}
 
   /* tips */
   .tips{margin-top:12px; display:flex; flex-direction:column; gap:7px}
@@ -451,6 +453,7 @@
     </div>
 
     <p class="disclaimer">Samples stream from public YouTube videos. UMDB grants no right to use them — clearing any sample before you release anything is your own responsibility.</p>
+    <p class="ver" id="ver"></p>
   </div>
 
 <script>
@@ -459,6 +462,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
+  const UIB='2026-07-30 · b8';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -748,6 +752,10 @@
   speedKnob=makeKnob('knobSpeed',{ def:1, pos2val:p=>0.5+p, val2pos:v=>Math.max(0,Math.min(1,v-0.5)), fmt:v=>'×'+v.toFixed(2), on:v=>setRate(v) });
   zoomKnob =makeKnob('knobZoom', { def:1, pos2val:p=>Math.pow(MAXZOOM,p), val2pos:v=>Math.log(Math.max(1,v))/Math.log(MAXZOOM), fmt:v=>v<1.05?'1.0×':v.toFixed(1)+'×', on:v=>applyZoomKnob(v) });
   sizeWave(); renderHistory(); renderPads(); updateNudgeInfo(); requestAnimationFrame(tick);
+  // versione visibile: APP (dal nativo, = APK installato) + UI (server)
+  (function(){ const e=$('#ver'); if(!e)return; let s='UI '+UIB+' · web';
+    if(NATIVE){ let av='?'; try{ if(NativeAudio.appVersion) av=NativeAudio.appVersion(); }catch(_){} s='APP v'+av+' · UI '+UIB; }
+    e.textContent=s; })();
 </script>
 </body>
 </html>
