@@ -1,6 +1,10 @@
 #!/bin/bash
-# Cron notturno: espande videos.json con la YouTube API + push su GitHub
-cd /home/francesco/miliardo-beats/06_ROULETTE
+# Cron notturno: rigenera videos.json (discovery yt-dlp gratis + validazione YouTube API) + push su GitHub
+set -uo pipefail
+cd /home/francesco/miliardo-beats/06_ROULETTE || exit 1
+# lock anti-overlap: se un run precedente e' ancora in corso, esci senza pasticci
+exec 9>tools/.refresh.lock
+flock -n 9 || { echo "=== $(date '+%Y-%m-%d %H:%M') refresh gia' in corso, skip ===" >> tools/refresh.log; exit 0; }
 LOG=/home/francesco/miliardo-beats/06_ROULETTE/tools/refresh.log
 echo "=== $(date '+%Y-%m-%d %H:%M') refresh pool ===" >> "$LOG"
 /home/francesco/miliardo-beats/01_ANALYTICS/api_privati/venv/bin/python tools/build_pool_api.py >> "$LOG" 2>&1

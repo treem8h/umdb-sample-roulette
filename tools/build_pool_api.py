@@ -1,97 +1,158 @@
 #!/usr/bin/env python3
-"""Genera videos.json (pool sample campionabili) via YouTube Data API.
-Filtri: categoria MUSICA (10) + embeddable + syndicated + durata 45-600s + no mix/karaoke/live.
-Nessuna key esposta al client: il pool risultante è statico. Rigenera per espandere/rinnovare."""
-import json, re, time, os
+"""Genera videos.json — pool di sample CAMPIONABILI per UMDB Sample Roulette.
+
+Architettura ibrida (v2):
+  1) DISCOVERY gratis con yt-dlp (nessuna quota YouTube) su tutte le query, ogni notte
+  2) VALIDAZIONE economica via YouTube Data API videos.list (1 unita'/50 id)
+Cosi' il costo API e' ~(#candidati+#esistenti)/50 unita' (~decine), niente piu' 429.
+
+Filtri (digger underground, roba da choppare):
+  - categoria musica implicita nelle query, durata 45-600s
+  - embeddable (cue istantaneo lato server)
+  - views nell'intervallo [VIEW_MIN, VIEW_MAX]  (floor anti AI-slop, cap anti-famosi)
+  - regex BAD: fuori type-beat/free/mix/live/karaoke + AI-slop/Indo-EDM/library/cover/remix
+  - cap PER-CANALE: max PER_CHANNEL tracce dallo stesso uploader (diversita')
+Rivalida sempre anche l'esistente: chi supera il cap, scende sotto il floor, diventa
+famoso/rotto o matcha la nuova BAD viene rimosso in automatico.
+
+Uso: build_pool_api.py [OUT_PATH]   (OUT_PATH opzionale per dry-run senza toccare il pool vero)
+"""
+import json, re, os, sys, subprocess
+from collections import Counter
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-HERE=os.path.dirname(os.path.abspath(__file__))
-OUT=os.path.join(HERE,"..","videos.json")
-TOKEN="/home/francesco/miliardo-beats/01_ANALYTICS/api_privati/token.json"
-creds=Credentials.from_authorized_user_file(TOKEN)
-yt=build('youtube','v3',credentials=creds)
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "videos.json")
+TOKEN = "/home/francesco/miliardo-beats/01_ANALYTICS/api_privati/token.json"
+YTDLP = "/home/francesco/.local/bin/yt-dlp"
 
-QUERIES=[
- "funk instrumental","soul instrumental","jazz funk","boogie funk","disco instrumental",
- "rare groove","library music","breakbeat","psych rock instrumental","garage rock",
- "bossa nova","samba funk","afrobeat","highlife","ethio jazz","turkish funk",
- "italian library music","french library music","krautrock","spanish funk","gospel funk",
- "rhythm and blues instrumental","northern soul","jazz fusion","rhodes soul","moog funk",
- "cinematic soundtrack instrumental","giallo soundtrack","lounge exotica","latin jazz",
- "salsa dura","cumbia","tropicalia","reggae instrumental","dub instrumental",
- "soul 45","funk 45","jazz drums break","vintage soul","70s funk","60s soul",
- "brazilian groove","japanese city pop","korean funk","nigerian funk","peruvian cumbia",
- "sitar funk","hammond organ jazz","blaxploitation soundtrack","spy jazz"
+VIEW_MIN    = 15      # sotto = quasi sempre AI-slop/spam appena caricato
+VIEW_MAX    = 30000   # sopra = troppo noto, non e' piu' digging
+DUR_MIN     = 45
+DUR_MAX     = 600
+PER_CHANNEL = 10      # max tracce dallo stesso canale (diversita' fonte)
+SEARCH_N    = 40      # risultati per query via yt-dlp (profondo: i primi sono i popolari che il cap 30k scarta)
+
+# Query mirate a materiale campionabile: strumentale/groove/vinile, con drum-break e
+# generi che un digger Dilla/Madlib/Alchemist cerca. Niente 'breakbeat' generico
+# (porta solo EDM indonesiano). Nomi di compositori library/giallo = originali, non imitazioni AI.
+QUERIES = [
+ # funk / soul core
+ "funk instrumental","soul instrumental","rare groove funk","boogie funk","disco instrumental",
+ "sweet soul","northern soul","psychedelic soul","gospel funk","rhythm and blues instrumental",
+ "vintage soul 45","funk 45","soul 45","70s funk","60s soul","deep funk instrumental",
+ "moog funk","rhodes soul instrumental","hammond organ funk","clavinet funk",
+ # drum break isolati (il buco piu' grosso del pool)
+ "funk drum break","open drums funk","drum break 45","soul drum break","isolated drums funk",
+ "drum solo funk","organ drum break","live drum break funk",
+ # jazz da campionare
+ "jazz funk","jazz fusion instrumental","spiritual jazz","soul jazz organ","latin jazz",
+ "jazz drums break","modal jazz","hard bop","library jazz",
+ # library / soundtrack / giallo
+ "library music","italian library music","french library music","kpm library",
+ "cinematic soundtrack instrumental","giallo soundtrack","spy jazz","blaxploitation soundtrack",
+ "lounge exotica","Piero Umiliani","Alessandro Alessandroni","Piero Piccioni","Stelvio Cipriani",
+ "Janko Nilovic","Bruton music","De Wolfe music",
+ # groove globale (dove vivono le gemme oscure)
+ "afrobeat instrumental","highlife","ethio jazz","zamrock","nigerian funk","ghana funk",
+ "turkish funk","turkish psych","brazilian funk","samba rock","bossa nova instrumental",
+ "tropicalia","brazilian groove","peruvian cumbia","cumbia funk","salsa dura","boogaloo",
+ "japanese city pop","japanese funk","korean funk","thai funk","cambodian rock",
+ "bollywood funk","indian funk","spanish funk","krautrock instrumental","dub instrumental",
+ "reggae instrumental","garage rock instrumental","psych rock instrumental",
 ]
-ORDERS=["relevance","viewCount","rating","date"]
-BAD=re.compile(r'(\btype beat\b|typebeat|\bfree\b|prod\.|prod by|no copyright|copyright free|'
-               r'\b1 hour\b|\b2 hour\b|\b3 hour\b|full album|\bmix\b|nonstop|non-stop|karaoke|tutorial|'
-               r'how to|reaction|live at|live in|lyrics?|documentary|interview|top \d|best of|'
-               r'compilation|playlist|mixtape|dj set|full ep|full lp|megamix|continuous|sped up|slowed)', re.I)
+
+# --- filtro qualita' sui titoli -------------------------------------------------
+# NB: \bmix\b non prende 'remix' -> lo aggiungo esplicito. Niente 'udio' nudo (falsi
+# positivi su "Official Audio"/"Studio"). L'anno 20xx nel titolo = re-upload/AI/finto-vintage.
+BAD = re.compile(
+    r'(\btype beat\b|typebeat|\bfree\b|prod\.|prod by|no copyright|copyright free|'
+    r'audio library|royalty[ -]?free|background music|'
+    r'\b1 hour\b|\b2 hour\b|\b3 hour\b|full album|\bmix\b|remix|nonstop|non-stop|megamix|continuous|'
+    r'karaoke|tutorial|how to|reaction|live at|live in|lyrics?|documentary|interview|'
+    r'top \d|best of|compilation|playlist|mixtape|dj set|full ep|full lp|'
+    r'sped up|speed ?up|slowed|remaster|nightcore|phonk|\bcover\b|'
+    r'full ?bass|full baas|terbaru|dangdut|mangkane|\bfyp\b|tiktok|'
+    r'\bsuno\b|ai generated|ai music|ai cover|generated by ai|8[ -]?bit|\bmidi\b|'
+    r'\b20(1\d|2\d)\b)', re.I)
 
 def iso_to_sec(s):
-    m=re.match(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?',s or '')
+    m = re.match(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?', s or '')
     if not m: return 0
-    h,mi,se=(int(x) if x else 0 for x in m.groups()); return h*3600+mi*60+se
+    h, mi, se = (int(x) if x else 0 for x in m.groups())
+    return h*3600 + mi*60 + se
 
-pool={}; calls=0
-# MERGE + RIVALIDA gli esistenti (rimuove famosi/rotti). videos.list = 1 unità/50 → economico.
+def ytdlp_ids(q, n=SEARCH_N):
+    try:
+        out = subprocess.run(
+            [YTDLP, "--flat-playlist", "--no-warnings", "--print", "%(id)s", f"ytsearch{n}:{q}"],
+            capture_output=True, text=True, timeout=90).stdout
+        return [l.strip() for l in out.splitlines() if len(l.strip()) == 11]
+    except Exception as e:
+        print(f"  ytdlp err '{q}': {str(e)[:60]}")
+        return []
+
+# 1) DISCOVERY (gratis) -----------------------------------------------------------
+cand = set()
+for i, q in enumerate(QUERIES):
+    got = ytdlp_ids(q)
+    cand.update(got)
+    print(f"  [{i+1}/{len(QUERIES)}] {q:32} +{len(got):2}  cand={len(cand)}")
+
+# 2) unisci l'esistente per rivalidarlo (titoli come fallback) --------------------
+existing = {}
 if os.path.exists(OUT):
     try:
-        existing=json.load(open(OUT)); tmap={v['id']:v.get('t','') for v in existing if v.get('id')}
-        ids=[v['id'] for v in existing if v.get('id')]
-        for i in range(0,len(ids),50):
-            try:
-                vr=yt.videos().list(part='contentDetails,status,statistics',id=','.join(ids[i:i+50])).execute(); calls+=1
-                for it in vr.get('items',[]):
-                    vid=it['id']; d=iso_to_sec(it['contentDetails']['duration'])
-                    views=int(it.get('statistics',{}).get('viewCount') or 10**9)  # niente view pubbliche = sospetto famoso → scartato
-                    if d<45 or d>600: continue
-                    if not it.get('status',{}).get('embeddable',True): continue
-                    if views>30000: continue
-                    t=tmap.get(vid,'')
-                    if BAD.search(t): continue
-                    pool[vid]={"id":vid,"d":d,"t":t[:80],"v":views}
-            except Exception as e: print(f"  reval err: {str(e)[:50]}")
-        print(f"  esistenti rivalidati: {len(pool)}/{len(ids)} tenuti (famosi/rotti rimossi)")
-    except: pass
-for qi,q in enumerate(QUERIES):
-    order=ORDERS[qi%len(ORDERS)]
-    token=None
-    for page in range(2):                      # 2 pagine per query = fino a 100 risultati
-        try:
-            r=yt.search().list(part='snippet',q=q,type='video',videoCategoryId='10',
-                videoEmbeddable='true',videoSyndicated='true',maxResults=50,
-                order=order,pageToken=token,relevanceLanguage='en').execute()
-            calls+=1
-        except Exception as e:
-            print(f"  search err '{q}': {str(e)[:70]}"); break
-        ids=[it['id']['videoId'] for it in r.get('items',[]) if it.get('id',{}).get('videoId')]
-        titles={it['id']['videoId']:it['snippet']['title'] for it in r.get('items',[]) if it.get('id',{}).get('videoId')}
-        # durata + status via videos.list (batch 50)
-        if ids:
-            try:
-                v=yt.videos().list(part='contentDetails,status,statistics',id=','.join(ids)).execute(); calls+=1
-                for it in v.get('items',[]):
-                    vid=it['id']; d=iso_to_sec(it['contentDetails']['duration'])
-                    st=it.get('status',{})
-                    views=int(it.get('statistics',{}).get('viewCount') or 10**9)  # niente view pubbliche = sospetto famoso → scartato
-                    if d<45 or d>600: continue
-                    if not st.get('embeddable',True): continue
-                    if views>30000: continue          # digger: solo roba underground (< 30k views (underground digger))
-                    t=titles.get(vid,'')
-                    if BAD.search(t): continue
-                    if vid in pool: continue
-                    pool[vid]={"id":vid,"d":d,"t":t[:80],"v":views}
-            except Exception as e:
-                print(f"  videos err: {str(e)[:60]}")
-        token=r.get('nextPageToken')
-        if not token: break
-    print(f"  [{qi+1}/{len(QUERIES)}] {q:28} pool={len(pool)}")
-    time.sleep(0.2)
+        for v in json.load(open(OUT)):
+            if v.get('id'): existing[v['id']] = v.get('t', '')
+    except Exception:
+        pass
+allids = list(cand | set(existing))
+nuovi = len(cand - set(existing))
+print(f"\nDa validare: {len(allids)}  (nuovi {nuovi} + esistenti {len(existing)})")
 
-arr=list(pool.values())
-json.dump(arr, open(OUT,"w"), ensure_ascii=False)
-print(f"\n✅ POOL: {len(arr)} sample puliti (musica, embeddable, 45-600s) | {calls} chiamate API")
+# 3) VALIDAZIONE via API (batch da 50, 1 unita'/chiamata) -------------------------
+creds = Credentials.from_authorized_user_file(TOKEN)
+yt = build('youtube', 'v3', credentials=creds)
+cands = {}
+calls = 0
+for i in range(0, len(allids), 50):
+    batch = allids[i:i+50]
+    try:
+        vr = yt.videos().list(part='contentDetails,status,statistics,snippet',
+                              id=','.join(batch)).execute()
+        calls += 1
+    except Exception as e:
+        print(f"  videos.list err: {str(e)[:70]}")
+        continue
+    for it in vr.get('items', []):
+        try:  # per-item: un video malformato non abortisce il batch da 50
+            vid = it['id']
+            d = iso_to_sec((it.get('contentDetails') or {}).get('duration'))
+            st = it.get('status') or {}
+            sn = it.get('snippet') or {}
+            views = int((it.get('statistics') or {}).get('viewCount') or 10**9)  # senza view = sospetto -> fuori
+            if d < DUR_MIN or d > DUR_MAX: continue
+            if not st.get('embeddable', True): continue
+            if views < VIEW_MIN or views > VIEW_MAX: continue
+            t = (sn.get('title') or existing.get(vid, ''))[:80]
+            if BAD.search(t): continue
+            cands[vid] = {"id": vid, "d": d, "t": t, "v": views, "c": sn.get('channelId') or ''}
+        except Exception:
+            continue
+print(f"  validati (pre cap-canale): {len(cands)}  | {calls} chiamate API")
+
+# 4) CAP PER-CANALE: tieni al max PER_CHANNEL per canale, preferendo i piu' oscuri --
+final = []
+seen_ch = Counter()
+for v in sorted(cands.values(), key=lambda x: x['v']):   # views crescenti = piu' underground prima
+    ch = v['c'] or v['id']
+    if seen_ch[ch] >= PER_CHANNEL:
+        continue
+    seen_ch[ch] += 1
+    final.append(v)
+
+json.dump(final, open(OUT, "w"), ensure_ascii=False)
+print(f"\n✅ POOL: {len(final)} sample campionabili | {len(seen_ch)} canali distinti | {calls} chiamate API")
 print(f"   -> {os.path.abspath(OUT)}")
