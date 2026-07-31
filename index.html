@@ -479,7 +479,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-07-31 · b25';   // marker build UI (server)
+  const UIB='2026-07-31 · b26';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -740,7 +740,7 @@
 
   /* ===== toast / share / sub / report ===== */
   function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
-  $('#shareBtn').addEventListener('pointerdown',async()=>{ const url='https://sampler.francescopavani.it'; const txt='Random sample roulette for beatmakers 🎛️ '+url;
+  $('#shareBtn').addEventListener('pointerdown',async()=>{ const url='https://sampler.unmiliardodibeats.it'; const txt='Random sample roulette for beatmakers 🎛️ '+url;
     if(NATIVE && window.Android && window.Android.share){ try{ window.Android.share(txt); return; }catch(_){} }   // menu share nativo Android
     const data={title:'UMDB Sample Roulette', text:'Random sample roulette for beatmakers 🎛️', url};
     try{ if(navigator.share){ await navigator.share(data); toast('Shared ✓'); } else { await navigator.clipboard.writeText(url); toast('Link copied ✓'); } }
