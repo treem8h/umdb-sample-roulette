@@ -1,3 +1,7 @@
 .DS_Store
 *.log
 videos.json.old
+videos.json.tmp
+videos.json.prev
+tools/__pycache__/
+tools/.refresh.lock
