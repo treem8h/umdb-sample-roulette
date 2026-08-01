@@ -479,7 +479,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-07-31 · b26';   // marker build UI (server)
+  const UIB='2026-08-01 · b27';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -534,7 +534,8 @@
   function setRate(r){ r=Math.max(RMIN,Math.min(RMAX,r)); rate=r; if(NATIVE){ NativeAudio.setRate(rate); return; } if(playing){ offset=curTime(); startedAt=ac.currentTime; } if(srcNode) srcNode.playbackRate.value=rate; }
 
   function nativeMaybeStart(){ if(NATIVE && nativeReady && buffer && loadingActive){ loadingActive=false; setMsg('READY'); startAt(0); } }
-  async function loadAudio(id){ const tok=++loadTok; nativeReady=false;
+  let keyId=null;   // id per l'analisi tonalità in background (modalità app)
+  async function loadAudio(id){ const tok=++loadTok; keyId=id; nativeReady=false;
     if(NATIVE){ try{NativeAudio.pause();}catch(_){} } else { ensureAC(); stopSrc(); }
     playing=false; buffer=null; peaks=null; curDur=0; offset=0; zoom=1; viewStart=0; selPad=-1; lastPad=-1; rate=1; loopIn=null; loopOut=null; loopOn=false;
     setPlay(); showFlag(false); loadingActive=true; setMsg('EXTRACTING…'); updateClock(); updateZoomBadge(); if(zoomKnob)zoomKnob.set(1); if(speedKnob)speedKnob.set(1);
@@ -557,6 +558,13 @@
     try{ const ps=NativeAudio.peaks(); if(ps){ const a=ps.split(','); const pk=new Float32Array(a.length); for(let i=0;i<a.length;i++)pk[i]=+a[i]; peaks=pk; } }catch(_){ }
     buffer={native:true};   // sentinella "caricato" (in nativo l'AudioBuffer JS non serve)
     loadingActive=false; showFlag(true); setMsg('READY'); drawWave(); startAt(0);
+    // TONALITÀ: analisi in background una tantum (NON blocca il play; l'audio nativo è su thread a parte).
+    // Riusa lo stesso rilevatore del web; il file è già in cache HTTP (l'ha scaricato il nativo) → niente doppio download reale.
+    const ktok=loadTok, kid=keyId;
+    setTimeout(()=>{ if(ktok!==loadTok||!kid)return; try{ensureAC();}catch(_){return;}
+      fetch(AUDIO+kid).then(r=>r.ok?r.arrayBuffer():Promise.reject(0)).then(ab=>{ if(ktok!==loadTok)return null; return ac.decodeAudioData(ab); })
+        .then(buf=>{ if(!buf||ktok!==loadTok)return; const k=analyzeKey(buf); if(ktok!==loadTok)return; const kb=$('#keybadge'); if(kb){kb.textContent=k; kb.classList.add('show');} }).catch(()=>{});
+    }, 800);
   };
   window.__nativeEnded=function(){ playing=false; setPlay(); paint(); };
   window.__nativeError=function(){ nativeReady=false; loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); };
