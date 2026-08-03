@@ -489,7 +489,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-08-03 · b30';   // marker build UI (server)
+  const UIB='2026-08-03 · b31';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -763,7 +763,8 @@
     try{ if(navigator.share){ await navigator.share(data); toast('Shared ✓'); } else { await navigator.clipboard.writeText(url); toast('Link copied ✓'); } }
     catch(e){ try{ await navigator.clipboard.writeText(url); toast('Link copied ✓'); }catch(_){ toast(url); } } });
   let rollCount=0, subTimer=null;
-  function bumpSub(){ rollCount++; if(rollCount%8===0){ const b=$('#subbanner'); b.classList.add('show'); clearTimeout(subTimer); subTimer=setTimeout(()=>b.classList.remove('show'),7000); } }
+  // nudge "iscriviti": compare durante il caricamento di OGNI brano (tempo morto dell'EXTRACTING) e sparisce da solo
+  function bumpSub(){ rollCount++; const b=$('#subbanner'); if(!b)return; b.classList.add('show'); clearTimeout(subTimer); subTimer=setTimeout(()=>b.classList.remove('show'),5000); }
   $('#subX').addEventListener('pointerdown',()=>$('#subbanner').classList.remove('show'));
   function reportTrack(){ if(!curTrack)return; blocked.add(curTrack.id); localStorage.setItem('umdb_block',JSON.stringify([...blocked].slice(-3000)));
     let reps=JSON.parse(localStorage.getItem('umdb_reports')||'[]'); reps.push({id:curTrack.id,t:curTrack.t||'',at:Date.now()}); localStorage.setItem('umdb_reports',JSON.stringify(reps.slice(-500)));
