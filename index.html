@@ -269,10 +269,11 @@
   .lpb.loop.on{color:#fff; background:linear-gradient(180deg,var(--blue),#245e94); border-color:#1d4e7c;
     box-shadow:0 3px 0 #163a5c, 0 0 14px rgba(46,116,181,.6), 0 1px 0 rgba(255,255,255,.2) inset}
   .editwrap{position:relative}
-  /* nudge = POPOVER che si apre SOPRA i tasti Clear/Reset/Edit (mai tagliato sotto lo schermo) */
-  .nudgebar{display:none; position:absolute; bottom:100%; left:0; right:0; margin-bottom:8px; z-index:30; padding:9px 8px 10px; border-radius:10px;
-    background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border:1px solid var(--groove); box-shadow:0 6px 16px rgba(0,0,0,.5), 0 2px 5px rgba(0,0,0,.4) inset}
+  /* nudge IN-FLOW tra pad e tasti (NON sopra i pad). In edit mode si nasconde la riga Random/Play/Restart → i pad salgono e c'è spazio */
+  .nudgebar{display:none; position:relative; margin:0 0 8px; padding:9px 8px 10px; border-radius:10px;
+    background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border:1px solid var(--groove); box-shadow:0 2px 5px rgba(0,0,0,.4) inset}
   .nudgebar.on{display:block}
+  .nativeapp.editmode .controls{ display:none !important }   /* edit pad: via Random/Play/Restart → pad più su, spazio per il nudge */
   .nudgeclose{position:absolute; top:5px; right:6px; width:20px; height:20px; padding:0; line-height:18px; text-align:center;
     appearance:none; cursor:pointer; border:1px solid var(--groove); border-radius:5px; background:rgba(0,0,0,.18);
     color:var(--txt-dim); font-family:"Courier New",monospace; font-size:.68rem; font-weight:700}
@@ -488,7 +489,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-08-03 · b28';   // marker build UI (server)
+  const UIB='2026-08-03 · b29';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -687,7 +688,7 @@
   // ---- EDIT PAD: modalità + nudge fine (centesimi) ----
   function updateNudgeInfo(){ const el=$('#nudgeinfo'); if(!el)return;
     el.textContent=(selPad>=0 && pads[selPad]!=null)? 'PAD '+String(selPad+1).padStart(2,'0')+'  ·  '+pads[selPad].toFixed(2)+'s' : (editMode?'tap a lit pad':'—'); }
-  function toggleEdit(){ editMode=!editMode; $('#editpad').classList.toggle('on',editMode); $('#nudgebar').classList.toggle('on',editMode);
+  function toggleEdit(){ editMode=!editMode; $('#editpad').classList.toggle('on',editMode); $('#nudgebar').classList.toggle('on',editMode); document.documentElement.classList.toggle('editmode',editMode);
     if(editMode){ if(clearMode){ clearMode=false; $('#shift').classList.remove('on'); }
       // auto-seleziona: ultimo pad premuto, senò il primo pad settato
       selPad=(lastPad>=0 && pads[lastPad]!=null)? lastPad : pads.findIndex(v=>v!=null);
