@@ -268,11 +268,17 @@
   .lpb.loop{font-size:.85rem; line-height:1}
   .lpb.loop.on{color:#fff; background:linear-gradient(180deg,var(--blue),#245e94); border-color:#1d4e7c;
     box-shadow:0 3px 0 #163a5c, 0 0 14px rgba(46,116,181,.6), 0 1px 0 rgba(255,255,255,.2) inset}
-  .nudgebar{display:none; margin-top:8px; padding:9px 8px; border-radius:10px;
-    background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border:1px solid var(--groove); box-shadow:0 2px 5px rgba(0,0,0,.4) inset}
+  .editwrap{position:relative}
+  /* nudge = POPOVER che si apre SOPRA i tasti Clear/Reset/Edit (mai tagliato sotto lo schermo) */
+  .nudgebar{display:none; position:absolute; bottom:100%; left:0; right:0; margin-bottom:8px; z-index:30; padding:9px 8px 10px; border-radius:10px;
+    background:linear-gradient(180deg,var(--plate-hi),var(--plate)); border:1px solid var(--groove); box-shadow:0 6px 16px rgba(0,0,0,.5), 0 2px 5px rgba(0,0,0,.4) inset}
   .nudgebar.on{display:block}
+  .nudgeclose{position:absolute; top:5px; right:6px; width:20px; height:20px; padding:0; line-height:18px; text-align:center;
+    appearance:none; cursor:pointer; border:1px solid var(--groove); border-radius:5px; background:rgba(0,0,0,.18);
+    color:var(--txt-dim); font-family:"Courier New",monospace; font-size:.68rem; font-weight:700}
+  .nudgeclose:active{transform:translateY(1px)}
   .nudgeinfo{display:block; text-align:center; font-family:"Courier New",monospace; font-size:.74rem; color:var(--lcd);
-    text-shadow:0 0 6px var(--lcd-glow); margin-bottom:8px; letter-spacing:.04em}
+    text-shadow:0 0 6px var(--lcd-glow); margin-bottom:8px; padding:0 26px; letter-spacing:.04em}
   .nudgebtns{display:grid; grid-template-columns:repeat(4,1fr); gap:6px}
   .nbtn{appearance:none; border:0; cursor:pointer; font-family:"Courier New",monospace; font-weight:700; font-size:.72rem; color:var(--key-txt);
     background:linear-gradient(180deg,var(--key),var(--key-lo)); border-radius:6px; padding:9px 2px; letter-spacing:-.02em;
@@ -432,23 +438,26 @@
 
     <div class="padplate"><div class="pads" id="pads"></div></div>
 
-    <!-- Clear/Reset/Edit + nudge SOTTO i pad → pad più in alto, visibili insieme alla waveform -->
-    <div class="editrow">
-      <div class="group clean">
-        <div class="cleanrow">
-          <button class="key" id="shift">Clear</button>
-          <button class="key" id="clearall">Reset</button>
+    <!-- Clear/Reset/Edit + nudge (il nudge si apre come POPOVER SOPRA questi tasti, con X) -->
+    <div class="editwrap">
+      <div class="nudgebar" id="nudgebar">
+        <button class="nudgeclose" id="nudgeclose" type="button" aria-label="Chiudi">✕</button>
+        <span class="nudgeinfo" id="nudgeinfo">tap a lit pad</span>
+        <div class="nudgebtns">
+          <button class="nbtn" data-n="-0.1">−0.1</button>
+          <button class="nbtn" data-n="-0.01">−.01</button>
+          <button class="nbtn" data-n="0.01">+.01</button>
+          <button class="nbtn" data-n="0.1">+0.1</button>
         </div>
       </div>
-      <button class="key editpad" id="editpad">Edit pad</button>
-    </div>
-    <div class="nudgebar" id="nudgebar">
-      <span class="nudgeinfo" id="nudgeinfo">tap a lit pad</span>
-      <div class="nudgebtns">
-        <button class="nbtn" data-n="-0.1">−0.1</button>
-        <button class="nbtn" data-n="-0.01">−.01</button>
-        <button class="nbtn" data-n="0.01">+.01</button>
-        <button class="nbtn" data-n="0.1">+0.1</button>
+      <div class="editrow">
+        <div class="group clean">
+          <div class="cleanrow">
+            <button class="key" id="shift">Clear</button>
+            <button class="key" id="clearall">Reset</button>
+          </div>
+        </div>
+        <button class="key editpad" id="editpad">Edit pad</button>
       </div>
     </div>
 
@@ -479,7 +488,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-08-01 · b27';   // marker build UI (server)
+  const UIB='2026-08-03 · b28';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -507,6 +516,8 @@
   let ac=null, gain=null, buffer=null, srcNode=null, srcGen=0, startedAt=0, offset=0, playing=false, curDur=0, loadTok=0, loadingActive=false, loadPhase=0;
   let rate=1; const RMIN=0.5, RMAX=1.5;   // varispeed: pitch+tempo insieme (come un giradischi/MPC)
   let loopIn=null, loopOut=null, loopOn=false;   // loop IN/OUT
+  let holdUntil=0;   // dopo un cue: centra il pad e tieni la waveform FERMA fino a questo istante, poi riprende lo scroll
+  function centerCue(t){ if(curDur && zoom>1){ viewStart=t-winSpan()*0.5; clampView(); } holdUntil=performance.now()+2000; }
   function ensureAC(){ if(!ac){ ac=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'}); gain=ac.createGain(); gain.connect(ac.destination); }
     if(ac.state==='suspended') ac.resume(); return ac; }
   // FIX BUG "manda in fondo": azzero onended PRIMA di stop → l'evento ritardato non sovrascrive più lo stato
@@ -520,14 +531,14 @@
   function startAt(t){ t=Math.max(0,Math.min(curDur||0,t||0)); offset=t;
     if(NATIVE){ if(!nativeReady)return;
       if(loopOn&&loopIn!=null&&loopOut!=null&&loopOut>loopIn)NativeAudio.setLoop(true,loopIn,loopOut); else NativeAudio.setLoop(false,0,0);
-      NativeAudio.setRate(rate); NativeAudio.play(t); playing=true; setPlay(); followView(true); paint(); return; }
+      NativeAudio.setRate(rate); NativeAudio.play(t); playing=true; setPlay(); centerCue(t); paint(); return; }
     ensureAC(); if(!buffer)return; stopSrc();
     const node=ac.createBufferSource(); node.buffer=buffer; node.playbackRate.value=rate;
     if(loopOn && loopIn!=null && loopOut!=null && loopOut>loopIn){ node.loop=true; node.loopStart=loopIn; node.loopEnd=loopOut; }
     node.connect(gain);
     const gen=++srcGen; node.start(0,offset); srcNode=node; startedAt=ac.currentTime; playing=true;
     node.onended=()=>{ if(gen===srcGen){ playing=false; offset=curDur; setPlay(); paint(); } };
-    setPlay(); followView(true); paint(); }
+    setPlay(); centerCue(offset); paint(); }
   function pauseA(){ if(!playing)return; offset=curTime(); if(NATIVE)NativeAudio.pause(); else stopSrc(); playing=false; setPlay(); paint(); }
   function togglePlay(){ if(!buffer)return; playing? pauseA() : startAt(offset>=curDur-0.05?0:offset); }
   // cambio velocità
@@ -610,7 +621,7 @@
   function updateZoomBadge(){ const z=$('#zoombadge'); if(!z)return; const zz=Math.round(zoom*10)/10; z.textContent=(zoom<1.05?'1×':zz+'×'); z.classList.toggle('show',zoom>1.05); }
   function paint(){ drawWave(); updateClock(); }
   function tick(){ if(NATIVE && !loadingActive && buffer){ const p=NativeAudio.isPlaying(); if(p!==playing){ playing=p; setPlay(); } }
-    if(loadingActive){ loadPhase=(loadPhase+0.02)%1; drawLoading(); } else if(playing){ if(!panning)followView(false); drawWave(); updateClock(); } requestAnimationFrame(tick); }
+    if(loadingActive){ loadPhase=(loadPhase+0.02)%1; drawLoading(); } else if(playing){ if(!panning && performance.now()>holdUntil)followView(false); drawWave(); updateClock(); } requestAnimationFrame(tick); }
 
   /* zoom helpers */
   function timeAtX(clientX){ const r=wave.getBoundingClientRect(); const f=Math.max(0,Math.min(1,(clientX-r.left)/r.width)); return viewStart+f*winSpan(); }
@@ -700,6 +711,7 @@
   $('#shift').addEventListener('pointerdown',e=>{ clearMode=!clearMode; e.currentTarget.classList.toggle('on',clearMode); renderPads(); setMsg(clearMode?'CLEAR MODE':'READY'); });
   $('#clearall').addEventListener('pointerdown',()=>{ pads=Array(16).fill(null); selPad=-1; savePads(); renderPads(); drawWave(); updateNudgeInfo(); setMsg('RESET'); });
   $('#editpad').addEventListener('pointerdown',toggleEdit);
+  { const nc=$('#nudgeclose'); if(nc) nc.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); if(editMode)toggleEdit(); }); }
   document.querySelectorAll('.nbtn').forEach(b=>b.addEventListener('pointerdown',()=>nudge(+b.dataset.n)));
   // ---- LOOP IN/OUT ----
   // aggiorna i bordi del loop LIVE se sta ciclando (native: feeder li rilegge; web: aggiorna il nodo)
