@@ -489,7 +489,7 @@
   // app Android (WebView) espone window.NativeAudio → audio nativo low-latency; nel browser = Web Audio
   const NATIVE=!!(window.NativeAudio&&window.NativeAudio.load);
   let nativeReady=false;
-  const UIB='2026-08-03 · b29';   // marker build UI (server)
+  const UIB='2026-08-03 · b30';   // marker build UI (server)
   if(NATIVE) document.documentElement.classList.add('nativeapp');
   // service worker SOLO nel browser (non nell'app nativa)
   if(!NATIVE && 'serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js?v=11').catch(()=>{})); }
@@ -570,13 +570,9 @@
     try{ const ps=NativeAudio.peaks(); if(ps){ const a=ps.split(','); const pk=new Float32Array(a.length); for(let i=0;i<a.length;i++)pk[i]=+a[i]; peaks=pk; } }catch(_){ }
     buffer={native:true};   // sentinella "caricato" (in nativo l'AudioBuffer JS non serve)
     loadingActive=false; showFlag(true); setMsg('READY'); drawWave(); startAt(0);
-    // TONALITÀ: analisi in background una tantum (NON blocca il play; l'audio nativo è su thread a parte).
-    // Riusa lo stesso rilevatore del web; il file è già in cache HTTP (l'ha scaricato il nativo) → niente doppio download reale.
-    const ktok=loadTok, kid=keyId;
-    setTimeout(()=>{ if(ktok!==loadTok||!kid)return; try{ensureAC();}catch(_){return;}
-      fetch(AUDIO+kid).then(r=>r.ok?r.arrayBuffer():Promise.reject(0)).then(ab=>{ if(ktok!==loadTok)return null; return ac.decodeAudioData(ab); })
-        .then(buf=>{ if(!buf||ktok!==loadTok)return; const k=analyzeKey(buf); if(ktok!==loadTok)return; const kb=$('#keybadge'); if(kb){kb.textContent=k; kb.classList.add('show');} }).catch(()=>{});
-    }, 800);
+    // TONALITÀ: in modalità app NON si fa più il decode+FFT in JS — era la causa del gracchio (CPU in contention
+    // col feeder audio nativo). La key tornerà calcolata NATIVAMENTE nel motore (senza costo sul main thread).
+    if(NATIVE && NativeAudio.key){ try{ const k=NativeAudio.key(); const kb=$('#keybadge'); if(k && kb){ kb.textContent=k; kb.classList.add('show'); } }catch(_){ } }
   };
   window.__nativeEnded=function(){ playing=false; setPlay(); paint(); };
   window.__nativeError=function(){ nativeReady=false; loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); };
