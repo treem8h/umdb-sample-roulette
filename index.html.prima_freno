@@ -547,30 +547,6 @@
 
   function nativeMaybeStart(){ if(NATIVE && nativeReady && buffer && loadingActive){ loadingActive=false; setMsg('READY'); startAt(0); } }
   let keyId=null;   // id per l'analisi tonalità in background (modalità app)
-
-  /* ===== IL FRENO SULLA CATENA DI SKIP =====
-     Quando un brano non si carica l'app ne prova un altro dopo 350 ms. Giusto:
-     su un pezzo tolto da YouTube saltarlo e' la cosa da fare. Ma se a fallire
-     sono TUTTI — rete giu', estrattore fermo, YouTube che blocca — quei 350 ms
-     diventano una catena infinita: tre brani al secondo, all'infinito, e sembra
-     che l'app impazzisca appena premi Random.
-     Qui gli skip di fila si contano. Dopo cinque ci si ferma e lo si dice, con
-     il tasto per riprovare: meglio un messaggio onesto che una slot machine. */
-  let skipFila=0, skipUltimo=0;
-  const SKIP_MAX=5;
-
-  function skipDopoErrore(){
-    const ora=Date.now();
-    if(ora-skipUltimo>8000) skipFila=0;   // se e' passato un po', ricomincia il conto
-    skipUltimo=ora; skipFila++;
-    if(skipFila>=SKIP_MAX){
-      loadingActive=false;
-      setMsg('NO AUDIO — TAP RANDOM');
-      return;                              // niente catena: si aspetta un dito
-    }
-    setMsg('SKIP… '+skipFila+'/'+SKIP_MAX);
-    setTimeout(rollRandom, 350*skipFila);  // e ogni volta si aspetta un po' di piu'
-  }
   async function loadAudio(id){ const tok=++loadTok; keyId=id; nativeReady=false;
     if(NATIVE){ try{NativeAudio.pause();}catch(_){} } else { ensureAC(); stopSrc(); }
     playing=false; buffer=null; peaks=null; curDur=0; offset=0; zoom=1; viewStart=0; selPad=-1; lastPad=-1; rate=1; loopIn=null; loopOut=null; loopOn=false;
@@ -585,50 +561,24 @@
       const res=await fetch(AUDIO+id); if(!res.ok) throw 0;
       const ab=await res.arrayBuffer(); if(tok!==loadTok) return;
       buffer=await ac.decodeAudioData(ab); if(tok!==loadTok) return;
-      curDur=buffer.duration; computePeaks(); loadingActive=false; skipFila=0; showFlag(true); setMsg('READY'); startAt(0);
+      curDur=buffer.duration; computePeaks(); loadingActive=false; showFlag(true); setMsg('READY'); startAt(0);
       const b=buffer; setTimeout(()=>{ if(b!==buffer)return; try{ const k=analyzeKey(b); if(b!==buffer)return; const kb=$('#keybadge'); if(kb){ kb.textContent=k; kb.classList.add('show'); } }catch(_){} }, 700);  // stima tonalità
-    }catch(e){ if(tok!==loadTok) return; loadingActive=false; skipDopoErrore(); }
+    }catch(e){ if(tok!==loadTok) return; loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); }
   }
   // nativo pronto: prendo i picchi già calcolati dal motore (niente decode JS) e parto subito
-  window.__nativeReady=function(dur,srate){ nativeReady=true; skipFila=0; curDur=dur||0;
+  window.__nativeReady=function(dur,srate){ nativeReady=true; curDur=dur||0;
     try{ const ps=NativeAudio.peaks(); if(ps){ const a=ps.split(','); const pk=new Float32Array(a.length); for(let i=0;i<a.length;i++)pk[i]=+a[i]; peaks=pk; } }catch(_){ }
     buffer={native:true};   // sentinella "caricato" (in nativo l'AudioBuffer JS non serve)
     showFlag(true);
     // ATTESA prima di suonare: dopo il decode nativo CPU/GC sono ancora caldi → il feeder audio va in underrun
     // = GRACCHIO al primo play. Aspetto che si assesti (e il caricamento dura un filo di più, come volevi).
-    /* L'ATTESA PRIMA DEL PRIMO PLAY.
-       Erano 1200 ms, tarati su un file che arrivava dalla cache del server:
-       pronto, gia' scaldato. Adesso il brano viene estratto al momento e ci
-       mette qualche secondo, quindi quando il decode finisce CPU e memoria
-       sono ancora sotto sforzo e il feeder audio va in underrun: e' il
-       gracchio al primo play. Duemila millesimi bastano; l'attesa si vede a
-       schermo come EXTRACTING, quindi non sembra bloccato. */
-    { const _st=loadTok; setMsg('EXTRACTING…'); setTimeout(()=>{ if(_st!==loadTok)return; loadingActive=false; setMsg('READY'); drawWave(); startAt(0); }, 2000); }
+    { const _st=loadTok; setMsg('EXTRACTING…'); setTimeout(()=>{ if(_st!==loadTok)return; loadingActive=false; setMsg('READY'); drawWave(); startAt(0); }, 1200); }
     // TONALITÀ: in modalità app NON si fa più il decode+FFT in JS — era la causa del gracchio (CPU in contention
     // col feeder audio nativo). La key tornerà calcolata NATIVAMENTE nel motore (senza costo sul main thread).
-    /* LA TONALITA'. La calcola il motore nativo, che pero' non sempre la
-       restituisce: se manca, nessuno la calcolava piu' e il riquadro restava
-       vuoto. Qui, quando il nativo non risponde, si scarica il pezzo iniziale
-       e si stima in JS come si e' sempre fatto — costa poco perche' bastano
-       trenta secondi di audio, e succede solo quando serve. */
-    let kNat=null;
-    if(NATIVE && NativeAudio.key){ try{ kNat=NativeAudio.key(); }catch(_){ } }
-    const kb=$('#keybadge');
-    if(kNat && kb){ kb.textContent=kNat; kb.classList.add('show'); }
-    else if(kb && keyId){
-      const _kt=loadTok, _kid=keyId;
-      setTimeout(()=>{ if(_kt!==loadTok) return;
-        fetch(AUDIO+_kid, {headers:{'Range':'bytes=0-1500000'}})
-          .then(r=>r.arrayBuffer())
-          .then(ab=>{ if(_kt!==loadTok) return; ensureAC(); return ac.decodeAudioData(ab); })
-          .then(b=>{ if(_kt!==loadTok || !b) return;
-                     const k=analyzeKey(b); if(k){ kb.textContent=k; kb.classList.add('show'); } })
-          .catch(()=>{});
-      }, 1500);
-    }
+    if(NATIVE && NativeAudio.key){ try{ const k=NativeAudio.key(); const kb=$('#keybadge'); if(k && kb){ kb.textContent=k; kb.classList.add('show'); } }catch(_){ } }
   };
   window.__nativeEnded=function(){ playing=false; setPlay(); paint(); };
-  window.__nativeError=function(){ nativeReady=false; loadingActive=false; skipDopoErrore(); };
+  window.__nativeError=function(){ nativeReady=false; loadingActive=false; setMsg('SKIP…'); setTimeout(rollRandom,350); };
   function showFlag(b){ const f=$('#reportBtn'); if(f) f.classList.toggle('on',!!b); const a=$('#waveCollapse'); if(a) a.classList.toggle('on',!!b); }
 
   /* ===== WAVEFORM + ZOOM ===== */
